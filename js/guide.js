@@ -140,6 +140,7 @@ const AHGuide = (() => {
 
             const alt = getAltitude(s.RA, s.DE);
             results.push({
+                idx  : i,
                 id   : s.name || ('obj_' + i),
                 name : s.name || '?',
                 type : s.t,
@@ -174,7 +175,7 @@ const AHGuide = (() => {
             const typeLabel = TYPE_LABELS[obj.type] || obj.type;
             const dimClass  = obj.alt < 20 ? ' dim' : '';
             const sizeStr   = obj.size > 0 ? `${obj.size.toFixed(0)}'` : '';
-            html += `<div class="guide_item${dimClass}" onclick="AHGuide.selectObject(${obj.ra},${obj.dec})">
+            html += `<div class="guide_item${dimClass}" onclick="AHGuide.selectObject(${obj.idx})">
   <span class="gi_dot">●</span>
   <span class="gi_name">${obj.name}</span>
   <span class="gi_type">${typeLabel}</span>
@@ -263,21 +264,9 @@ const AHGuide = (() => {
         refresh();
     }
 
-    function selectObject(ra, dec) {
-        // 원본의 findTargetByName() 대신 좌표로 직접 가장 가까운 allstars 인덱스 찾기
-        let bestIdx = -1;
-        let bestDist = 9999;
-        for (let i = 0; i < allstars.length; i++) {
-            const s = allstars[i];
-            if (!s || s.RA === undefined) continue;
-            const d = Math.abs(s.RA - ra) + Math.abs(s.DE - dec);
-            if (d < bestDist) {
-                bestDist = d;
-                bestIdx  = i;
-            }
-        }
-        if (bestIdx >= 0) {
-            global_target_index = bestIdx;
+    function selectObject(idx) {
+        if (idx >= 0 && idx < allstars.length) {
+            global_target_index = idx;
         }
         close();
     }
