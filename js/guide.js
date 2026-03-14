@@ -14,7 +14,7 @@ const AHGuide = (() => {
     let isOpen     = false;
     let sortByDist = true;                    // true=거리순, false=밝기순
     let activeTypes = new Set(['Oc','Gc','Ne','Ga','S']);
-    let radiusDeg  = 5.0;
+    let radiusDeg  = 10.0;
     let limitMag   = 9.0;
     let currentRA  = null;
     let currentDec = null;
@@ -267,6 +267,14 @@ const AHGuide = (() => {
     function selectObject(idx) {
         if (idx >= 0 && idx < allstars.length) {
             global_target_index = idx;
+            const star = allstars[idx];
+            const nameEl = document.getElementById('search_field_main');
+            if (nameEl && star && star.name) {
+                nameEl.value = star.name;
+            }
+            if (typeof showHideInfoIcon === 'function') {
+                showHideInfoIcon();
+            }
         }
         close();
     }

@@ -1,7 +1,7 @@
 <!DOCTYPE>
 <html>
 <head>
-<title>AstroHopper KR - 별자리 항법 앱</title>
+<title>AstroHopper KR - BIH_ver</title>
 <link rel="manifest" href="manifest.json">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -140,15 +140,34 @@ input[type=submit] { width:10mm;}
     padding: 1mm 2mm;
     opacity: 0.85;
 }
+/* 모바일: 하단 절반 패널 */
 #guide_panel {
     display: none;
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    left: 0; right: 0; bottom: 0;
+    height: 55vh;
     background: black;
     z-index: 100;
     overflow-x: hidden;
     overflow-y: hidden;
+    border-top: 1px solid #550000;
     animation: fadeIn 0.15s ease;
+}
+/* 태블릿(600px 이상): 오른쪽 사이드 패널 */
+@media (min-width: 600px) {
+    #guide_panel {
+        top: 0; left: auto; right: 0; bottom: 0;
+        width: 320px;
+        height: 100%;
+        border-top: none;
+        border-left: 1px solid #550000;
+    }
+}
+/* 데스크탑(900px 이상): 더 넓은 사이드 패널 */
+@media (min-width: 900px) {
+    #guide_panel {
+        width: 380px;
+    }
 }
 @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 #guide_header {
@@ -183,7 +202,10 @@ input[type=submit] { width:10mm;}
     overflow-y: auto;
     padding: 1mm 3mm;
     font-size: 4mm;
-    height: calc(100vh - 70mm);
+    height: calc(55vh - 40mm);
+}
+@media (min-width: 600px) {
+    #guide_list { height: calc(100vh - 55mm); }
 }
 .guide_item {
     display: flex;
@@ -232,8 +254,8 @@ input[type=submit] { width:10mm;}
         <span id="guide_center_info">-</span>
     </div>
     <div id="guide_filters">
-        <label>반경 <span id="guide_radius_val">5</span>°
-            <input type="range" id="guide_radius" min="1" max="20" value="5" oninput="AHGuide.updateFilters()">
+        <label>반경 <span id="guide_radius_val">10</span>°
+            <input type="range" id="guide_radius" min="5" max="30" value="10" oninput="AHGuide.updateFilters()">
         </label>
         <label>한계등급 <span id="guide_mag_val">9.0</span>
             <input type="range" id="guide_mag_range" min="40" max="140" value="90" oninput="AHGuide.updateFilters()">
