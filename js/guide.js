@@ -11,7 +11,8 @@
 
 const AHGuide = (() => {
     // ── 상태 ────────────────────────────────────────────────────────────
-    let isOpen     = false;
+    let isOpen        = false;
+    let clickBlocked  = false;  // body selectionEvent 버블링 차단 플래그
     let sortByDist = true;                    // true=거리순, false=밝기순
     let activeTypes = new Set(['Oc','Gc','Ne','Ga','S']);
     let radiusDeg  = 10.0;
@@ -206,6 +207,11 @@ const AHGuide = (() => {
     function open() {
         const panel = document.getElementById('guide_panel');
         if (!panel) return;
+        if (!clickBlocked) {
+            panel.addEventListener('click', e => e.stopPropagation());
+            panel.addEventListener('touchstart', e => e.stopPropagation());
+            clickBlocked = true;
+        }
         isOpen = true;
         panel.style.display = 'block';
         refresh();
