@@ -209,8 +209,19 @@ const AHGuide = (() => {
         const backdrop = document.getElementById('guide_backdrop');
         if (!panel) return;
         if (!clickBlocked) {
-            panel.addEventListener('click', e => e.stopPropagation());
-            panel.addEventListener('touchstart', e => e.stopPropagation());
+            const stop = e => e.stopPropagation();
+            panel.addEventListener('click',       stop);
+            panel.addEventListener('touchstart',  stop);
+            panel.addEventListener('touchmove',   stop);
+            panel.addEventListener('touchend',    stop);
+            panel.addEventListener('touchcancel', stop);
+            if (backdrop) {
+                backdrop.addEventListener('click',       stop);
+                backdrop.addEventListener('touchstart',  stop);
+                backdrop.addEventListener('touchmove',   stop);
+                backdrop.addEventListener('touchend',    stop);
+                backdrop.addEventListener('touchcancel', stop);
+            }
             clickBlocked = true;
         }
         isOpen = true;
