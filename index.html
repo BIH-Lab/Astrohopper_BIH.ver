@@ -228,9 +228,10 @@ input[type=submit] { width:10mm;}
 .guide_item .gi_dot { font-size: 5mm; color: #ff4444; }
 .guide_item .gi_name { font-weight: bold; min-width: 20mm; }
 .guide_item .gi_type { color: #cc0000; min-width: 16mm; font-size: 3.5mm; }
-.guide_item .gi_dist { min-width: 12mm; text-align: right; color: #ff6666; }
-.guide_item .gi_mag  { min-width: 12mm; text-align: right; color: #cc4444; font-size: 3.5mm; }
-.guide_item .gi_size { color: #aa0000; font-size: 3mm; }
+.guide_item .gi_mag  { min-width: 12mm; text-align: right; color: #cc4444; font-weight: bold; }
+.guide_item .gi_dist { min-width: 12mm; text-align: right; color: #ff6666; font-weight: normal; }
+.guide_item.guide_header { cursor: default; border-bottom: 1px solid #550000; color: #880000; font-size: 3.5mm; }
+.guide_item.guide_header:active { background: transparent; }
 #dss_overlay {
     display: none;
     position: fixed;
@@ -275,7 +276,7 @@ input[type=submit] { width:10mm;}
             <button id="gf_Gc" class="active" onclick="AHGuide.toggleType('Gc')">구상성단</button>
             <button id="gf_Ne" class="active" onclick="AHGuide.toggleType('Ne')">성운</button>
             <button id="gf_Ga" class="active" onclick="AHGuide.toggleType('Ga')">은하</button>
-            <button id="gf_S"  class="active" onclick="AHGuide.toggleType('S')">이중성</button>
+            <button id="gf_S"  onclick="AHGuide.toggleType('S')">이중성</button>
         </div>
         <button id="guide_sort_btn" onclick="AHGuide.toggleSort()">거리순 ↕</button>
     </div>

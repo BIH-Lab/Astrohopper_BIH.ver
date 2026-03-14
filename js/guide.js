@@ -14,7 +14,7 @@ const AHGuide = (() => {
     let isOpen        = false;
     let clickBlocked  = false;  // body selectionEvent 버블링 차단 플래그
     let sortByDist = true;                    // true=거리순, false=밝기순
-    let activeTypes = new Set(['Oc','Gc','Ne','Ga','S']);
+    let activeTypes = new Set(['Oc','Gc','Ne','Ga']);
     let radiusDeg  = 10.0;
     let limitMag   = 9.0;
     let currentRA  = null;
@@ -171,18 +171,22 @@ const AHGuide = (() => {
             return;
         }
 
-        let html = '';
+        let html = `<div class="guide_item guide_header">
+  <span class="gi_dot"></span>
+  <span class="gi_name">천체</span>
+  <span class="gi_type">종류</span>
+  <span class="gi_mag">등급</span>
+  <span class="gi_dist">거리</span>
+</div>`;
         for (const obj of items) {
             const typeLabel = TYPE_LABELS[obj.type] || obj.type;
             const dimClass  = obj.alt < 20 ? ' dim' : '';
-            const sizeStr   = obj.size > 0 ? `${obj.size.toFixed(0)}'` : '';
             html += `<div class="guide_item${dimClass}" onclick="AHGuide.selectObject(${obj.idx})">
   <span class="gi_dot">●</span>
   <span class="gi_name">${obj.name}</span>
   <span class="gi_type">${typeLabel}</span>
-  <span class="gi_dist">${obj.dist.toFixed(1)}°</span>
   <span class="gi_mag">★${obj.mag.toFixed(1)}</span>
-  <span class="gi_size">${sizeStr}</span>
+  <span class="gi_dist">${obj.dist.toFixed(1)}°</span>
 </div>`;
         }
         el.innerHTML = html;
