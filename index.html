@@ -135,11 +135,6 @@ input[type=submit] { width:10mm;}
     font-size: 4mm;
     opacity: 0.85;
 }
-#dss_button {
-    font-size: 4mm;
-    padding: 1mm 2mm;
-    opacity: 0.85;
-}
 #guide_backdrop {
     display: none;
     position: fixed;
@@ -232,25 +227,9 @@ input[type=submit] { width:10mm;}
 .guide_item .gi_dist { min-width: 12mm; text-align: right; color: #ff6666; font-weight: normal; }
 .guide_item.guide_header { cursor: default; border-bottom: 1px solid #550000; color: #880000; font-size: 3.5mm; }
 .guide_item.guide_header:active { background: transparent; }
-#dss_overlay {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: -2;
-    background: black;
-}
-#dss_overlay img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-    opacity: 0.45;
-    filter: saturate(0.3) brightness(0.7);
-}
 </style>
 <body>
 <canvas style="position:absolute; left:0; top:0; z-index:-1"  id="myCanvas" width="640" height="480"> </canvas>
-
-<!-- DSS 이미지 배경 오버레이 -->
-<div id="dss_overlay"><img id="dss_img" src="" alt="" /></div>
 
 <!-- 가이드 버튼 (우하단 고정) -->
 <button id="guide_button" class="ui_but" onclick="AHGuide.open();">가이드 ▲</button>
@@ -388,9 +367,6 @@ input[type=submit] { width:10mm;}
 <input class="dso_selector" id="FS_checked" type="checkbox" onchange="toggleFS(this.checked)"        /><label for="FS_checked" class="tr">Full S.</label>
 </p><p>
 <input class="dso_selector" id="SWL_checked" type="checkbox" onchange="toggleSWL(this.checked)" /><label for="SWL_checked" class="tr">Keep Screen On</label>
-</p>
-<p>
-<input class="dso_selector" id="dss_checked" type="checkbox" onchange="AHDSS.toggle(this.checked)" /><label for="dss_checked">DSS 이미지 배경</label>
 </p>
 <p>
     <select id="lang_select">
@@ -8114,7 +8090,6 @@ var i18n_dicts = {
         "User Objects": "사용자 천체",
         "Font": "글꼴",
         "Guide": "관측 가이드",
-        "DSS Image": "DSS 이미지",
         "Back to Map": "지도로 돌아가기",
         "Radius": "반경",
         "Limit Mag": "한계등급",
@@ -10813,6 +10788,5 @@ window.addEventListener("load", () => {
 
 
 <script src="js/guide.js"></script>
-<script src="js/dss.js"></script>
 </body>
 </html>
