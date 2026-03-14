@@ -183,6 +183,12 @@ const AHGuide = (() => {
         if (!box.dataset.loaded) {
             box.dataset.loaded = '1';
             const img = box.querySelector('img');
+            img.style.opacity = '0';
+            img.onload = () => {
+                img.style.transition = 'opacity 0.5s ease';
+                img.style.opacity = '1';
+            };
+            img.onerror = () => { img.style.display = 'none'; };
             img.src = getDSSThumbUrl(ra, dec, size);
         }
     }
