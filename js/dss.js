@@ -111,13 +111,18 @@ const AHDSS = (() => {
     function toggle(checked) {
         enabled = checked;
         const overlay = document.getElementById('dss_overlay');
+        const canvas  = document.getElementById('myCanvas');
         if (!overlay) return;
 
         if (enabled) {
             overlay.style.display = 'block';
+            // 캔버스의 검정 배경이 DSS 이미지를 가리지 않도록 lighten 블렌드 모드 적용
+            // lighten = max(canvas, dss): 검정픽셀→DSS 표시, 별/선→원래 색상 유지
+            if (canvas) canvas.style.mixBlendMode = 'lighten';
             startLoop();
         } else {
             overlay.style.display = 'none';
+            if (canvas) canvas.style.mixBlendMode = '';
             stopLoop();
             lastRA  = null;
             lastDec = null;
