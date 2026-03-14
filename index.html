@@ -140,6 +140,13 @@ input[type=submit] { width:10mm;}
     padding: 1mm 2mm;
     opacity: 0.85;
 }
+#guide_backdrop {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 99;
+    background: rgba(0,0,0,0.5);
+}
 /* 모바일: 하단 절반 패널 */
 #guide_panel {
     display: none;
@@ -246,6 +253,9 @@ input[type=submit] { width:10mm;}
 
 <!-- 가이드 버튼 (우하단 고정) -->
 <button id="guide_button" class="ui_but" onclick="AHGuide.open();">가이드 ▲</button>
+
+<!-- 가이드 패널 배경 차단 오버레이 -->
+<div id="guide_backdrop" onclick="AHGuide.close();"></div>
 
 <!-- 관측 가이드 전체화면 패널 -->
 <div id="guide_panel">

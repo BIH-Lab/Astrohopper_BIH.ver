@@ -205,7 +205,8 @@ const AHGuide = (() => {
 
     // ── 공개 API ─────────────────────────────────────────────────────────
     function open() {
-        const panel = document.getElementById('guide_panel');
+        const panel    = document.getElementById('guide_panel');
+        const backdrop = document.getElementById('guide_backdrop');
         if (!panel) return;
         if (!clickBlocked) {
             panel.addEventListener('click', e => e.stopPropagation());
@@ -214,14 +215,17 @@ const AHGuide = (() => {
         }
         isOpen = true;
         panel.style.display = 'block';
+        if (backdrop) backdrop.style.display = 'block';
         refresh();
     }
 
     function close() {
-        const panel = document.getElementById('guide_panel');
+        const panel    = document.getElementById('guide_panel');
+        const backdrop = document.getElementById('guide_backdrop');
         if (!panel) return;
         isOpen = false;
         panel.style.display = 'none';
+        if (backdrop) backdrop.style.display = 'none';
     }
 
     function refresh() {
