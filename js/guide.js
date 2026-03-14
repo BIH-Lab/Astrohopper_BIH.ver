@@ -163,7 +163,7 @@ const AHGuide = (() => {
 
     // ── DSS 썸네일 URL 생성 ──────────────────────────────────────────────
     function getDSSThumbUrl(ra, dec, objSizeArcmin) {
-        const size = Math.min(30, Math.max(10, (objSizeArcmin || 0) * 1.5 || 15));
+        const size = Math.min(90, Math.max(20, (objSizeArcmin || 0) * 3 || 20));
         return 'https://archive.stsci.edu/cgi-bin/dss_search'
              + `?v=poss2ukstu_red&r=${ra.toFixed(4)}&d=${dec.toFixed(4)}`
              + `&e=J2000&h=${size}&w=${size}&f=gif&c=none`;
