@@ -161,6 +161,32 @@ const AHGuide = (() => {
         return results;
     }
 
+    // ── DSS 썸네일 URL 생성 ──────────────────────────────────────────────
+    function getDSSThumbUrl(ra, dec, objSizeArcmin) {
+        const size = Math.min(30, Math.max(10, (objSizeArcmin || 0) * 1.5 || 15));
+        return 'https://archive.stsci.edu/cgi-bin/dss_search'
+             + `?v=poss2ukstu_red&r=${ra.toFixed(4)}&d=${dec.toFixed(4)}`
+             + `&e=J2000&h=${size}&w=${size}&f=gif&c=none`;
+    }
+
+    // ── DSS 미리보기 토글 ─────────────────────────────────────────────────
+    function togglePreview(idx, ra, dec, size, event) {
+        event.stopPropagation();
+        const box = document.getElementById('gi_preview_' + idx);
+        if (!box) return;
+        const visible = box.style.display === 'block';
+        if (visible) {
+            box.style.display = 'none';
+            return;
+        }
+        box.style.display = 'block';
+        if (!box.dataset.loaded) {
+            box.dataset.loaded = '1';
+            const img = box.querySelector('img');
+            img.src = getDSSThumbUrl(ra, dec, size);
+        }
+    }
+
     // ── 목록 렌더링 ──────────────────────────────────────────────────────
     function renderList(items) {
         const el = document.getElementById('guide_list');
@@ -177,6 +203,7 @@ const AHGuide = (() => {
   <span class="gi_type">종류</span>
   <span class="gi_mag">등급</span>
   <span class="gi_dist">거리</span>
+  <span class="gi_prev_btn"></span>
 </div>`;
         for (const obj of items) {
             const typeLabel = TYPE_LABELS[obj.type] || obj.type;
@@ -187,6 +214,11 @@ const AHGuide = (() => {
   <span class="gi_type">${typeLabel}</span>
   <span class="gi_mag">★${obj.mag.toFixed(1)}</span>
   <span class="gi_dist">${obj.dist.toFixed(1)}°</span>
+  <button class="gi_prev_btn" onclick="AHGuide.togglePreview(${obj.idx},${obj.ra},${obj.dec},${obj.size},event)">🔭</button>
+</div>
+<div class="gi_preview_box" id="gi_preview_${obj.idx}">
+  <img src="" alt="${obj.name}" />
+  <span class="gi_preview_label">${obj.name} — DSS</span>
 </div>`;
         }
         el.innerHTML = html;
@@ -304,5 +336,5 @@ const AHGuide = (() => {
         close();
     }
 
-    return { open, close, refresh, updateFilters, toggleType, toggleSort, selectObject };
+    return { open, close, refresh, updateFilters, toggleType, toggleSort, selectObject, togglePreview };
 })();

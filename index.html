@@ -227,6 +227,39 @@ input[type=submit] { width:10mm;}
 .guide_item .gi_dist { min-width: 12mm; text-align: right; color: #ff6666; font-weight: normal; }
 .guide_item.guide_header { cursor: default; border-bottom: 1px solid #550000; color: #880000; font-size: 3.5mm; }
 .guide_item.guide_header:active { background: transparent; }
+.gi_prev_btn {
+    margin-left: auto;
+    background: none;
+    border: 1px solid #440000;
+    color: #cc4444;
+    font-size: 3.5mm;
+    padding: 0.5mm 1.5mm;
+    height: auto;
+    cursor: pointer;
+    border-radius: 1mm;
+    flex-shrink: 0;
+}
+.gi_prev_btn:active { background: #1a0000; }
+.gi_preview_box {
+    display: none;
+    padding: 2mm 3mm 2mm 8mm;
+    background: #0a0000;
+    border-bottom: 1px solid #330000;
+}
+.gi_preview_box img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    display: block;
+    background: #1a0000;
+    border: 1px solid #440000;
+}
+.gi_preview_label {
+    display: block;
+    color: #660000;
+    font-size: 3mm;
+    margin-top: 1mm;
+}
 </style>
 <body>
 <canvas style="position:absolute; left:0; top:0; z-index:-1"  id="myCanvas" width="640" height="480"> </canvas>
