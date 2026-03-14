@@ -182,13 +182,15 @@ const AHGuide = (() => {
         box.style.display = 'block';
         if (!box.dataset.loaded) {
             box.dataset.loaded = '1';
-            const img = box.querySelector('img');
-            img.style.opacity = '0';
+            const img     = box.querySelector('img');
+            const loading = box.querySelector('.gi_loading');
             img.onload = () => {
-                img.style.transition = 'opacity 0.5s ease';
-                img.style.opacity = '1';
+                if (loading) loading.style.display = 'none';
+                img.style.display = 'block';
             };
-            img.onerror = () => { img.style.display = 'none'; };
+            img.onerror = () => {
+                if (loading) loading.textContent = '이미지 없음';
+            };
             img.src = getDSSThumbUrl(ra, dec, size);
         }
     }
@@ -223,7 +225,8 @@ const AHGuide = (() => {
   <button class="gi_prev_btn" onclick="AHGuide.togglePreview(${obj.idx},${obj.ra},${obj.dec},${obj.size},event)">🔭</button>
 </div>
 <div class="gi_preview_box" id="gi_preview_${obj.idx}">
-  <img src="" alt="${obj.name}" />
+  <span class="gi_loading">로딩 중...</span>
+  <img src="" alt="${obj.name}" style="display:none" />
   <span class="gi_preview_label">${obj.name} — DSS</span>
 </div>`;
         }
