@@ -4,12 +4,16 @@
  * DSS 이미지는 온라인 전용 (오프라인 시 자동 숨김).
  */
 
-const CACHE_NAME = 'astrohopper-kr-v4';
+const CACHE_NAME = 'astrohopper-kr-v5';
 const CORE_ASSETS = [
     '/',
     '/index.html',
     '/js/guide.js',
     '/manifest.json',
+    '/icons/icon-192.png',
+    '/icons/icon-192-maskable.png',
+    '/icons/icon-512.png',
+    '/icons/icon-180.png',
 ];
 
 // 설치: 핵심 파일 캐시

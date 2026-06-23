@@ -169,26 +169,69 @@ const AHGuide = (() => {
              + `&e=J2000&h=${size}&w=${size}&f=gif&c=none`;
     }
 
+    // ── 현재 열린 미리보기 추적 (한 번에 하나만) ─────────────────────────
+    let activePreviewIdx = null;
+
+    function closePreview(idx) {
+        const box = document.getElementById('gi_preview_' + idx);
+        if (!box) return;
+        const img = box.querySelector('img');
+        if (img) {
+            img.onload  = null;
+            img.onerror = null;
+            img.src     = '';       // 브라우저 메모리 해제
+        }
+        delete box.dataset.loaded;  // 다음 열기 시 재로드 가능
+        box.style.display = 'none';
+    }
+
     // ── DSS 미리보기 토글 ─────────────────────────────────────────────────
     function togglePreview(idx, ra, dec, size, event) {
         event.stopPropagation();
+
+        // 다른 미리보기가 열려 있으면 먼저 닫고 메모리 해제
+        if (activePreviewIdx !== null && activePreviewIdx !== idx) {
+            closePreview(activePreviewIdx);
+            activePreviewIdx = null;
+        }
+
         const box = document.getElementById('gi_preview_' + idx);
         if (!box) return;
-        const visible = box.style.display === 'block';
-        if (visible) {
-            box.style.display = 'none';
+
+        if (box.style.display === 'block') {
+            closePreview(idx);
+            activePreviewIdx = null;
             return;
         }
+
+        activePreviewIdx = idx;
         box.style.display = 'block';
+
         if (!box.dataset.loaded) {
             box.dataset.loaded = '1';
             const img     = box.querySelector('img');
             const loading = box.querySelector('.gi_loading');
+
+            if (loading) { loading.style.display = 'inline'; loading.textContent = '로딩 중...'; }
+            img.style.display = 'none';
+
+            // 12초 안에 응답 없으면 타임아웃
+            const timer = setTimeout(() => {
+                img.onload  = null;
+                img.onerror = null;
+                img.src     = '';
+                delete box.dataset.loaded;
+                if (loading) loading.textContent = '시간 초과 — 다시 눌러 재시도';
+            }, 12000);
+
             img.onload = () => {
+                clearTimeout(timer);
                 if (loading) loading.style.display = 'none';
                 img.style.display = 'block';
             };
             img.onerror = () => {
+                clearTimeout(timer);
+                delete box.dataset.loaded;
                 if (loading) loading.textContent = '이미지 없음';
             };
             img.src = getDSSThumbUrl(ra, dec, size);
