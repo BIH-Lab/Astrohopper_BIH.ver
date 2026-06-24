@@ -8,6 +8,7 @@
  *
  * global_fov(긴 변 기준 전체 시야각)를 읽어 픽셀 반경을 계산하며,
  * FOV가 바뀔 때(핀치 줌) requestAnimationFrame으로 자동 갱신합니다.
+ * 설정창의 #telrad_checked 체크박스와 연동됩니다.
  */
 
 const AHTelrad = (() => {
@@ -36,6 +37,11 @@ const AHTelrad = (() => {
             'display:none',
         ].join(';');
         document.body.appendChild(svg);
+    }
+
+    function syncCheckbox() {
+        const cb = document.getElementById('telrad_checked');
+        if (cb) cb.checked = visible;
     }
 
     function draw() {
@@ -73,8 +79,8 @@ const AHTelrad = (() => {
         }
 
         // ── 십자선 (내원 안쪽에서 중심 방향으로 짧게) ────────────────────
-        const gap = (0.25 * pxDeg) * 0.55;  // 내원 반경의 55% 지점부터
-        const arm = Math.min(w, h) * 0.055; // 팔 길이
+        const gap = (0.25 * pxDeg) * 0.55;
+        const arm = Math.min(w, h) * 0.055;
         const cs  = 'rgba(210,50,10,0.85)';
         const sw  = '1.2';
         html += `<line x1="${f(cx-gap-arm)}" y1="${f(cy)}" x2="${f(cx-gap)}" y2="${f(cy)}" stroke="${cs}" stroke-width="${sw}"/>`;
@@ -92,23 +98,21 @@ const AHTelrad = (() => {
         visible = true;
         ensureSvg();
         svg.style.display = 'block';
-        lastFov = null; // 강제 재렌더
+        lastFov = null;
         rafId = requestAnimationFrame(draw);
-        const btn = document.getElementById('telrad_btn');
-        if (btn) btn.classList.add('active');
+        syncCheckbox();
     }
 
     function hide() {
         visible = false;
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         if (svg) svg.style.display = 'none';
-        const btn = document.getElementById('telrad_btn');
-        if (btn) btn.classList.remove('active');
+        syncCheckbox();
     }
 
     function toggle() {
         visible ? hide() : show();
     }
 
-    return { toggle };
+    return { show, hide, toggle };
 })();

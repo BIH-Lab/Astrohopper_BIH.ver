@@ -4,7 +4,7 @@
  * DSS 이미지는 온라인 전용 (오프라인 시 자동 숨김).
  */
 
-const CACHE_NAME = 'astrohopper-kr-v8';
+const CACHE_NAME = 'astrohopper-kr-v9';
 const BASE = '/Astrohopper_BIH.ver';
 const CORE_ASSETS = [
     BASE + '/',
