@@ -2,7 +2,7 @@
   "name": "AstroHopper KR",
   "short_name": "AstroHopper",
   "description": "별자리 항법 앱 — 망원경 스타 호핑을 위한 한국어 앱",
-  "start_url": ".",
+  "start_url": "/Astrohopper_BIH.ver/",
   "scope": "/Astrohopper_BIH.ver/",
   "display": "fullscreen",
   "orientation": "portrait",

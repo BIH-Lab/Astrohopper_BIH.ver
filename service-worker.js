@@ -4,16 +4,17 @@
  * DSS 이미지는 온라인 전용 (오프라인 시 자동 숨김).
  */
 
-const CACHE_NAME = 'astrohopper-kr-v6';
+const CACHE_NAME = 'astrohopper-kr-v7';
+const BASE = '/Astrohopper_BIH.ver';
 const CORE_ASSETS = [
-    './',
-    './index.html',
-    './js/guide.js',
-    './manifest.json',
-    './icons/icon-192.png',
-    './icons/icon-192-maskable.png',
-    './icons/icon-512.png',
-    './icons/icon-180.png',
+    BASE + '/',
+    BASE + '/index.html',
+    BASE + '/js/guide.js',
+    BASE + '/manifest.json',
+    BASE + '/icons/icon-192.png',
+    BASE + '/icons/icon-192-maskable.png',
+    BASE + '/icons/icon-512.png',
+    BASE + '/icons/icon-180.png',
 ];
 
 // 설치: 핵심 파일 캐시
@@ -58,6 +59,6 @@ self.addEventListener('fetch', event => {
                 }
                 return response;
             });
-        }).catch(() => caches.match('./index.html'))
+        }).catch(() => caches.match(BASE + '/index.html'))
     );
 });
