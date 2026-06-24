@@ -318,6 +318,7 @@ const AHGuide = (() => {
         isOpen = true;
         panel.style.display = 'block';
         if (backdrop) backdrop.style.display = 'block';
+        if (typeof AHTelrad !== 'undefined') AHTelrad.syncCheckbox();
         refresh();
     }
 

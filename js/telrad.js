@@ -42,6 +42,8 @@ const AHTelrad = (() => {
     function syncCheckbox() {
         const cb = document.getElementById('telrad_checked');
         if (cb) cb.checked = visible;
+        const btn = document.getElementById('guide_telrad_btn');
+        if (btn) btn.classList.toggle('active', visible);
     }
 
     function draw() {
@@ -114,5 +116,5 @@ const AHTelrad = (() => {
         visible ? hide() : show();
     }
 
-    return { show, hide, toggle };
+    return { show, hide, toggle, syncCheckbox };
 })();

@@ -189,6 +189,8 @@ input[type=submit] { width:10mm;}
 }
 #guide_header button { font-size: 4mm; padding: 1mm 2mm; height: auto; }
 #guide_center_info { color: #ff4444; font-size: 3.5mm; flex: 1; text-align: center; }
+#guide_telrad_btn { opacity: 0.5; }
+#guide_telrad_btn.active { opacity: 1.0; border-color: #ff4444; }
 #guide_filters {
     padding: 2mm 3mm;
     border-bottom: 1px solid #330000;
@@ -290,6 +292,7 @@ input[type=submit] { width:10mm;}
     <div id="guide_header">
         <button class="tr" onclick="AHGuide.close();">← Back to Map</button>
         <span id="guide_center_info">-</span>
+        <button id="guide_telrad_btn" class="tr" onclick="AHTelrad.toggle()">◎ Telrad</button>
     </div>
     <div id="guide_filters">
         <label><span class="tr">Radius</span> <span id="guide_radius_val">10</span>°
