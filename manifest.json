@@ -2,27 +2,27 @@
   "name": "AstroHopper KR",
   "short_name": "AstroHopper",
   "description": "별자리 항법 앱 — 망원경 스타 호핑을 위한 한국어 앱",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": ".",
+  "scope": "/Astrohopper_BIH.ver/",
   "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "#0a0a1c",
   "theme_color": "#0a0a1c",
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-192-maskable.png",
+      "src": "icons/icon-192-maskable.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
