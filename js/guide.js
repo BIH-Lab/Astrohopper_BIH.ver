@@ -10,27 +10,30 @@
  */
 
 const AHGuide = (() => {
+    // ── 번역 헬퍼 (index.html의 _tr() 연동) ─────────────────────────────
+    function t(s) { return typeof window._tr === 'function' ? window._tr(s) : s; }
+
     // ── 상태 ────────────────────────────────────────────────────────────
     let isOpen        = false;
     let clickBlocked  = false;  // body selectionEvent 버블링 차단 플래그
-    let sortByDist = true;                    // true=거리순, false=밝기순
+    let sortByDist = true;
     let activeTypes = new Set(['Oc','Gc','Ne','Ga']);
     let radiusDeg  = 10.0;
     let limitMag   = 9.0;
     let currentRA  = null;
     let currentDec = null;
-    let currentAlt = null;  // 현재 중심 고도 (디버그용)
+    let currentAlt = null;
 
-    // ── 천체 종류 한국어 레이블 ──────────────────────────────────────────
-    const TYPE_LABELS = {
-        'Oc': '산개성단',
-        'Gc': '구상성단',
-        'Ne': '성운',
-        'Ga': '은하',
-        'S' : '이중성',
-        'P' : '행성',
-        'Ca': '별자리',
-        'U' : '사용자',
+    // ── 천체 종류 기본 레이블 (영어 키 → 번역 적용) ──────────────────────
+    const TYPE_KEYS = {
+        'Oc': 'Open Cl.',
+        'Gc': 'Glob. Cl.',
+        'Ne': 'Nebula',
+        'Ga': 'Galaxy',
+        'S' : 'Dbl. Star',
+        'P' : 'Planet',
+        'Ca': 'Const.',
+        'U' : 'User',
     };
 
     // ── 각거리 계산 ─────────────────────────────────────────────────────
@@ -212,7 +215,7 @@ const AHGuide = (() => {
             const img     = box.querySelector('img');
             const loading = box.querySelector('.gi_loading');
 
-            if (loading) { loading.style.display = 'inline'; loading.textContent = '로딩 중...'; }
+            if (loading) { loading.style.display = 'inline'; loading.textContent = t('Loading...'); }
             img.style.display = 'none';
 
             // 12초 안에 응답 없으면 타임아웃
@@ -221,7 +224,7 @@ const AHGuide = (() => {
                 img.onerror = null;
                 img.src     = '';
                 delete box.dataset.loaded;
-                if (loading) loading.textContent = '시간 초과 — 다시 눌러 재시도';
+                if (loading) loading.textContent = t('Timeout — tap to retry');
             }, 12000);
 
             img.onload = () => {
@@ -232,7 +235,7 @@ const AHGuide = (() => {
             img.onerror = () => {
                 clearTimeout(timer);
                 delete box.dataset.loaded;
-                if (loading) loading.textContent = '이미지 없음';
+                if (loading) loading.textContent = t('No image');
             };
             img.src = getDSSThumbUrl(ra, dec, size);
         }
@@ -244,20 +247,20 @@ const AHGuide = (() => {
         if (!el) return;
 
         if (items.length === 0) {
-            el.innerHTML = '<p style="color:#660000;padding:3mm;">주변 천체 없음 — 반경이나 한계등급을 조정해 보세요.</p>';
+            el.innerHTML = `<p style="color:#660000;padding:3mm;">${t('No objects nearby')}</p>`;
             return;
         }
 
         let html = `<div class="guide_item guide_header">
   <span class="gi_dot"></span>
-  <span class="gi_name">천체</span>
-  <span class="gi_type">종류</span>
-  <span class="gi_mag">등급</span>
-  <span class="gi_dist">거리</span>
+  <span class="gi_name">${t('Object')}</span>
+  <span class="gi_type">${t('Type')}</span>
+  <span class="gi_mag">${t('Mag')}</span>
+  <span class="gi_dist">${t('Dist')}</span>
   <span class="gi_prev_btn"></span>
 </div>`;
         for (const obj of items) {
-            const typeLabel = TYPE_LABELS[obj.type] || obj.type;
+            const typeLabel = t(TYPE_KEYS[obj.type] || obj.type);
             const dimClass  = obj.alt < 20 ? ' dim' : '';
             html += `<div class="guide_item${dimClass}" onclick="AHGuide.selectObject(${obj.idx})">
   <span class="gi_dot">●</span>
@@ -281,7 +284,7 @@ const AHGuide = (() => {
         const el = document.getElementById('guide_center_info');
         if (!el) return;
         if (!center) {
-            el.textContent = '정렬 필요';
+            el.textContent = t('Alignment needed');
             return;
         }
         const raH  = center.ra / 15;
@@ -369,7 +372,7 @@ const AHGuide = (() => {
     function toggleSort() {
         sortByDist = !sortByDist;
         const btn = document.getElementById('guide_sort_btn');
-        if (btn) btn.textContent = sortByDist ? '거리순 ↕' : '밝기순 ↕';
+        if (btn) btn.textContent = sortByDist ? t('By Dist ↕') : t('By Brightness ↕');
         refresh();
     }
 

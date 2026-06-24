@@ -129,14 +129,16 @@ input[type=text], input[type=text]:focus, input[type=submit], input[type=number]
 input[type=submit] { width:10mm;}
 
 /* ── AstroHopper KR 추가 스타일 ── */
-#guide_button {
+#guide_button, #guide_button_small {
     position: fixed;
     right: 3mm;
     bottom: 3mm;
     z-index: 50;
+    opacity: 0.85;
+}
+#guide_button {
     padding: 2mm 3mm;
     font-size: 4mm;
-    opacity: 0.85;
 }
 #guide_backdrop {
     display: none;
@@ -274,8 +276,9 @@ input[type=submit] { width:10mm;}
 <body>
 <canvas style="position:absolute; left:0; top:0; z-index:-1"  id="myCanvas" width="640" height="480"> </canvas>
 
-<!-- 가이드 버튼 (우하단 고정) -->
-<button id="guide_button" class="ui_but" onclick="AHGuide.open();">가이드 ▲</button>
+<!-- 가이드 버튼 (우하단 고정) — Full UI: 큰 버튼 / Small UI: 아이콘 버튼 -->
+<button id="guide_button"       class="ui_but only_full_b tr"  onclick="AHGuide.open();">Guide ▲</button>
+<button id="guide_button_small" class="incdec_but only_tiny_b" onclick="AHGuide.open();">▲</button>
 
 <!-- 가이드 패널 배경 차단 오버레이 -->
 <div id="guide_backdrop" onclick="AHGuide.close();"></div>
@@ -283,24 +286,24 @@ input[type=submit] { width:10mm;}
 <!-- 관측 가이드 전체화면 패널 -->
 <div id="guide_panel">
     <div id="guide_header">
-        <button onclick="AHGuide.close();">← 지도로</button>
+        <button class="tr" onclick="AHGuide.close();">← Back to Map</button>
         <span id="guide_center_info">-</span>
     </div>
     <div id="guide_filters">
-        <label>반경 <span id="guide_radius_val">10</span>°
+        <label><span class="tr">Radius</span> <span id="guide_radius_val">10</span>°
             <input type="range" id="guide_radius" min="5" max="30" value="10" oninput="AHGuide.updateFilters()">
         </label>
-        <label>한계등급 <span id="guide_mag_val">9.0</span>
+        <label><span class="tr">Limit Mag</span> <span id="guide_mag_val">9.0</span>
             <input type="range" id="guide_mag_range" min="40" max="140" value="90" oninput="AHGuide.updateFilters()">
         </label>
         <div id="guide_type_filters">
-            <button id="gf_Oc" class="active" onclick="AHGuide.toggleType('Oc')">산개성단</button>
-            <button id="gf_Gc" class="active" onclick="AHGuide.toggleType('Gc')">구상성단</button>
-            <button id="gf_Ne" class="active" onclick="AHGuide.toggleType('Ne')">성운</button>
-            <button id="gf_Ga" class="active" onclick="AHGuide.toggleType('Ga')">은하</button>
-            <button id="gf_S"  onclick="AHGuide.toggleType('S')">이중성</button>
+            <button id="gf_Oc" class="active tr" onclick="AHGuide.toggleType('Oc')">Open Cl.</button>
+            <button id="gf_Gc" class="active tr" onclick="AHGuide.toggleType('Gc')">Glob. Cl.</button>
+            <button id="gf_Ne" class="active tr" onclick="AHGuide.toggleType('Ne')">Nebula</button>
+            <button id="gf_Ga" class="active tr" onclick="AHGuide.toggleType('Ga')">Galaxy</button>
+            <button id="gf_S"  class="tr"        onclick="AHGuide.toggleType('S')">Dbl. Star</button>
         </div>
-        <button id="guide_sort_btn" onclick="AHGuide.toggleSort()">거리순 ↕</button>
+        <button id="guide_sort_btn" class="tr" onclick="AHGuide.toggleSort()">By Dist ↕</button>
     </div>
     <div id="guide_list"></div>
 </div>
@@ -411,7 +414,7 @@ input[type=submit] { width:10mm;}
 <input class="dso_selector" id="FS_checked" type="checkbox" onchange="toggleFS(this.checked)"        /><label for="FS_checked" class="tr">Full S.</label>
 </p><p>
 <input class="dso_selector" id="SWL_checked" type="checkbox" onchange="toggleSWL(this.checked)" /><label for="SWL_checked" class="tr">Keep Screen On</label>
-<input class="dso_selector" id="telrad_checked" type="checkbox" onchange="this.checked ? AHTelrad.show() : AHTelrad.hide()" /><label for="telrad_checked">◎ 텔라드</label>
+<input class="dso_selector" id="telrad_checked" type="checkbox" onchange="this.checked ? AHTelrad.show() : AHTelrad.hide()" /><label for="telrad_checked" class="tr">◎ Telrad</label>
 </p>
 <p>
     <select id="lang_select">
@@ -8141,7 +8144,30 @@ var i18n_dicts = {
         "Distance": "거리",
         "Brightness": "밝기순",
         "No objects found": "주변 천체 없음",
-        "Nearby Objects": "주변 천체"
+        "Nearby Objects": "주변 천체",
+        "Guide ▲": "가이드 ▲",
+        "◎ Telrad": "◎ 텔라드",
+        "← Back to Map": "← 지도로",
+        "Limit Mag": "한계등급",
+        "Open Cl.": "산개성단",
+        "Glob. Cl.": "구상성단",
+        "Nebula": "성운",
+        "Galaxy": "은하",
+        "Dbl. Star": "이중성",
+        "Planet": "행성",
+        "Const.": "별자리",
+        "User": "사용자",
+        "By Dist ↕": "거리순 ↕",
+        "By Brightness ↕": "밝기순 ↕",
+        "Object": "천체",
+        "Type": "종류",
+        "Mag": "등급",
+        "Dist": "거리",
+        "Alignment needed": "정렬 필요",
+        "Loading...": "로딩 중...",
+        "Timeout — tap to retry": "시간 초과 — 다시 눌러 재시도",
+        "No image": "이미지 없음",
+        "No objects nearby": "주변 천체 없음 — 반경이나 한계등급을 조정해 보세요."
     }
 }
 </script>
