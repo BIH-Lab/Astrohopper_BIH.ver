@@ -4,12 +4,13 @@
  * DSS 이미지는 온라인 전용 (오프라인 시 자동 숨김).
  */
 
-const CACHE_NAME = 'astrohopper-kr-v7';
+const CACHE_NAME = 'astrohopper-kr-v8';
 const BASE = '/Astrohopper_BIH.ver';
 const CORE_ASSETS = [
     BASE + '/',
     BASE + '/index.html',
     BASE + '/js/guide.js',
+    BASE + '/js/telrad.js',
     BASE + '/manifest.json',
     BASE + '/icons/icon-192.png',
     BASE + '/icons/icon-192-maskable.png',

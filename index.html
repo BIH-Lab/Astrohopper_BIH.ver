@@ -137,6 +137,20 @@ input[type=submit] { width:10mm;}
     font-size: 4mm;
     opacity: 0.85;
 }
+#telrad_btn {
+    position: fixed;
+    right: 3mm;
+    bottom: 13mm;
+    z-index: 50;
+    padding: 2mm 3mm;
+    font-size: 4mm;
+    opacity: 0.85;
+}
+#telrad_btn.active {
+    background: #aa2200;
+    color: #fff;
+    opacity: 1;
+}
 #guide_backdrop {
     display: none;
     position: fixed;
@@ -272,6 +286,9 @@ input[type=submit] { width:10mm;}
 </style>
 <body>
 <canvas style="position:absolute; left:0; top:0; z-index:-1"  id="myCanvas" width="640" height="480"> </canvas>
+
+<!-- 텔라드 오버레이 버튼 -->
+<button id="telrad_btn" class="ui_but" onclick="AHTelrad.toggle();">◎ 텔라드</button>
 
 <!-- 가이드 버튼 (우하단 고정) -->
 <button id="guide_button" class="ui_but" onclick="AHGuide.open();">가이드 ▲</button>
@@ -10830,5 +10847,6 @@ window.addEventListener("load", () => {
 
 
 <script src="js/guide.js"></script>
+<script src="js/telrad.js"></script>
 </body>
 </html>
