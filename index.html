@@ -10150,8 +10150,10 @@ function manualMove(e)
             global_start_zoom = global_fov;
             updateFOV();
         }
+        global_prev_xy = xy;
+        global_toch_start_time = null;
+        return;
     }
-
 
 	moveSky(global_prev_xy,xy);
 	global_prev_xy = xy;
