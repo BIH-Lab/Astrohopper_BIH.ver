@@ -284,11 +284,6 @@ input[type=submit] { width:10mm;}
 <button id="guide_button"       class="ui_but only_full_b tr"  onclick="AHGuide.open();">Guide ▲</button>
 <button id="guide_button_small" class="incdec_but only_tiny_b" onclick="AHGuide.open();">▲</button>
 
-<!-- EQ 모드: ΔRA/ΔDec 오프셋 표시 -->
-<div id="eq_offset_display" style="display:none; position:fixed; bottom:18mm; left:50%; transform:translateX(-50%); color:#ff6666; font-size:3.5mm; text-align:center; background:rgba(0,0,0,0.65); padding:1mm 3mm; border-radius:1mm; z-index:10; pointer-events:none;">
-  <span id="eq_dra">ΔRA: —</span> &nbsp; <span id="eq_ddec">ΔDec: —</span>
-</div>
-
 <!-- 가이드 패널 배경 차단 오버레이 -->
 <div id="guide_backdrop" onclick="AHGuide.close();"></div>
 
@@ -326,8 +321,7 @@ input[type=submit] { width:10mm;}
 	<span class="only_full"><button class="ui_but tr" onclick="align();">Align</button></span>
 	<span class="only_tiny"><button class="incdec_but" onclick="align();">&#x25ce;</button></span>
     <span id="countdown"></span>
-    <span class="only_tiny" id="alignment_tiny"></span><span class="only_full" id="alignment"></span>
-    <span id="eq_second_area" style="display:none"><button class="incdec_but tr" onclick="alignSecond();">2nd ✦</button></span>
+    <span class="only_tiny" id="alignment_tiny"></span><span class="only_full" id="alignment"></span> 
 	<button class="comp_but nocompass_background" id="nocompass_button" style="display:none">&nbsp;</button>
 	<button class="comp_but manual_background" id="hand_button" style="display:none;" onclick="manualMode();">&nbsp;</button>
 	<button class="comp_but compass_background" id="compass_button" style="display:none" onclick="compassMode();">&nbsp;</button>
@@ -452,7 +446,6 @@ input[type=submit] { width:10mm;}
 </p><p>
 <input class="dso_selector" id="SWL_checked" type="checkbox" onchange="toggleSWL(this.checked)" /><label for="SWL_checked" class="tr">Keep Screen On</label>
 <input class="dso_selector" id="telrad_checked" type="checkbox" onchange="this.checked ? AHTelrad.show() : AHTelrad.hide()" /><label for="telrad_checked" class="tr">◎ Telrad</label>
-<input class="dso_selector" id="eq_mode_checked" type="checkbox" /><label for="eq_mode_checked" class="tr">EQ Mount Mode</label>
 </p>
 <p>
     <select id="lang_select">
@@ -8185,9 +8178,6 @@ var i18n_dicts = {
         "Nearby Objects": "주변 천체",
         "Guide ▲": "가이드 ▲",
         "◎ Telrad": "◎ 텔라드",
-        "EQ Mount Mode": "적도의 모드",
-        "Select 2nd Star": "2번째 별 선택",
-        "2nd ✦": "2번째 ✦",
         "← Back to Map": "← 지도로",
         "Limit Mag": "한계등급",
         "Open Cl.": "산개성단",
@@ -8952,8 +8942,6 @@ var gdata = {
 
 var global_align_matrix = [1,0,0,0,1,0,0,0,1];
 var global_use_gyro = false;
-var global_eq_mode = false;
-var global_eq_align_second = false;
 var global_full_screen = false;
 
 var global_status = "";
@@ -9215,8 +9203,6 @@ function setUseGyro(val,message=null,message_tiny=null)
 	}
 	document.getElementById("alignment").innerHTML = status;
 	document.getElementById("alignment_tiny").innerHTML = status_t;
-	var eq2 = document.getElementById('eq_second_area');
-	if (eq2) eq2.style.display = (global_use_gyro && global_eq_mode) ? 'inline' : 'none';
 }
 
 function resetAll()
@@ -9318,25 +9304,13 @@ function selectAlign(index)
 	var dalt_mat = matAdd(matEye(),1,W,Math.sin(-dAlt));
 	dalt_mat = matAdd(dalt_mat,1,matMul(W,W),2*Math.sin(-dAlt/2)*Math.sin(-dAlt/2));
 	
-	var correction = matMul(daz_mat,dalt_mat);
-	if (global_eq_align_second) {
-		global_align_matrix = matMul(correction, global_align_matrix);
-		global_eq_align_second = false;
-	} else {
-		global_align_matrix = correction;
-		setUseGyro(true);
-		gdata.alpha_diff = (gdata.alpha + gdata.alpha_user_offset) - gdata.alpha_gyro;
-	}
+	//global_align_matrix = daz_mat;
+	global_align_matrix = matMul(daz_mat,dalt_mat); 
+	
+	setUseGyro(true);
+	gdata.alpha_diff = (gdata.alpha + gdata.alpha_user_offset) - gdata.alpha_gyro;
 	global_align_index = index;
 	global_expecting_select = selectTarget;
-}
-
-function alignSecond()
-{
-	if (!global_use_gyro || !global_eq_mode) return;
-	global_eq_align_second = true;
-	setUseGyro(true, _tr("Select 2nd Star"), "2");
-	global_expecting_select = selectAlignWithTimer;
 }
 
 /// rotation matrix is 
@@ -9902,7 +9876,6 @@ function plotStars()
 	}
 	plotLines(camRays);
 	plotAltAz(camRays[2]);
-	updateEqOffset(camRays[2]);
 	var passed = Date.now() - start;
 	if(passed > global_expected_frame_rate_ms / 2) {
 		setTimeout(plotStars,global_expected_frame_rate_ms);
@@ -9928,42 +9901,6 @@ function plotAltAz(fwd)
 	context.fillText(alt,canvas.width - 5,canvas.height - 5)
 	context.textAlign = 'start';
 	context.fillText(az,5,canvas.height - 5)
-}
-
-function updateEqOffset(fwd)
-{
-	var el = document.getElementById('eq_offset_display');
-	if (!el) return;
-	if (!global_eq_mode || global_target_index < 0 || !global_use_gyro) {
-		el.style.display = 'none';
-		return;
-	}
-	var alt = Math.asin(Math.min(1, Math.max(-1, fwd[2])));
-	var az_n = Math.atan2(fwd[0], fwd[1]);
-	var f = gdata.lat * Math.PI / 180;
-	var sinDec = Math.sin(f)*Math.sin(alt) + Math.cos(f)*Math.cos(alt)*Math.cos(az_n);
-	var curDec = Math.asin(Math.min(1, Math.max(-1, sinDec))) * 180 / Math.PI;
-	var H = Math.atan2(
-		-Math.sin(az_n) * Math.cos(alt),
-		-Math.cos(az_n) * Math.sin(f) * Math.cos(alt) + Math.sin(alt) * Math.cos(f)
-	);
-	var jd = gdata.time * 1e-3 / 86400.0 + 2440587.5;
-	var tu = jd - 2451545.0;
-	var lst = Math.PI * 2 * (0.7790572732640 + 1.00273781191135448 * tu)
-	          + gdata.lon * Math.PI / 180;
-	var curRa = ((lst - H) * 180 / Math.PI % 360 + 360) % 360;
-	var tgt = allstars[global_target_index];
-	var dRa  = ((tgt.RA - curRa + 540) % 360 - 180) * Math.cos(curDec * Math.PI / 180);
-	var dDec = tgt.DE - curDec;
-	var fmt = function(d) {
-		var sign = d >= 0 ? '+' : '-';
-		var abs = Math.abs(d);
-		if (abs < 1.5) return sign + (abs * 60).toFixed(0) + "'";
-		return sign + abs.toFixed(1) + '°';
-	};
-	document.getElementById('eq_dra').textContent  = 'ΔRA: '  + fmt(dRa);
-	document.getElementById('eq_ddec').textContent = 'ΔDec: ' + fmt(dDec);
-	el.style.display = 'block';
 }
 
 function selectTarget(index)
@@ -10935,7 +10872,6 @@ function setupConfigurableElements()
     configureCheckboxOption('small_screen',false,smallScreen);
     configureCheckboxOption('NM_checked',false,switchNightMode);
     configureCheckboxOption('SWL_checked',false,toggleSWL)
-    configureCheckboxOption('eq_mode_checked',false,(v) => { global_eq_mode = v; var eq2 = document.getElementById('eq_second_area'); if(eq2) eq2.style.display = 'none'; });
     configureCheckboxOption('align_dso_checked',false,(v) => { global_align_on_dso = v; });
     configureCheckboxOption('show_star_names_checked',true,(v) => { global_show_star_names = v; });
     configureCheckboxOption('P_checked',true,(v) => { global_show_obj.P = v; });
