@@ -164,13 +164,31 @@ const AHGuide = (() => {
         return results;
     }
 
-    // ── DSS 썸네일 URL 생성 ──────────────────────────────────────────────
-    function getDSSThumbUrl(ra, dec, objSizeArcmin) {
-        const size = Math.min(90, Math.max(20, (objSizeArcmin || 0) * 3 || 20));
-        return 'https://archive.stsci.edu/cgi-bin/dss_search'
-             + `?v=poss2ukstu_red&r=${ra.toFixed(4)}&d=${dec.toFixed(4)}`
-             + `&e=J2000&h=${size}&w=${size}&f=gif&c=none`;
-    }
+    // ── DSS2 미리보기 이미지 ─────────────────────────────────────────────
+    // 모든 대상을 같은 시야(fov)로 보여 줘 대상 크기를 서로 비교할 수 있게 한다.
+    // 1순위: CDS hips2fits DSS2 컬러(Aladin Lite와 같은 데이터, JPEG)
+    // 2순위: NASA SkyView DSS2 Red(JPEG) — CDS 접속이 안 되는 망 대비
+    const FOV_OPTIONS = [0.5, 1, 2];               // 도(°)
+    let previewFov = 1;
+    try { const v = parseFloat(localStorage.getItem('kr_dss_fov')); if (FOV_OPTIONS.includes(v)) previewFov = v; } catch (e) {}
+
+    const PREVIEW_PX = 300;
+    const DSS_SOURCES = [
+        { label: 'DSS2 color', timeout: 7000, url: (ra, dec, fov) =>
+            'https://alasky.cds.unistra.fr/hips-image-services/hips2fits'
+            + `?hips=CDS%2FP%2FDSS2%2Fcolor&width=${PREVIEW_PX}&height=${PREVIEW_PX}`
+            + `&fov=${fov}&projection=TAN&coordsys=icrs`
+            + `&ra=${ra.toFixed(5)}&dec=${dec.toFixed(5)}&format=jpg` },
+        { label: 'DSS2 Red', timeout: 15000, url: (ra, dec, fov) =>
+            'https://skyview.gsfc.nasa.gov/current/cgi/runquery.pl'
+            + `?Survey=DSS2+Red&Position=${ra.toFixed(5)},${dec.toFixed(5)}`
+            + `&Size=${fov}&Pixels=${PREVIEW_PX}&Scaling=Linear&Return=JPEG` },
+    ];
+
+    let cdsUnavailable = false;
+    function firstSource() { return cdsUnavailable ? 1 : 0; }
+
+    function fovText(fov) { return fov < 1 ? Math.round(fov * 60) + '′' : fov + '°'; }
 
     // ── 현재 열린 미리보기 추적 (한 번에 하나만) ─────────────────────────
     let activePreviewIdx = null;
@@ -180,12 +198,69 @@ const AHGuide = (() => {
         if (!box) return;
         const img = box.querySelector('img');
         if (img) {
+            clearTimeout(img._krTimer);
             img.onload  = null;
             img.onerror = null;
-            img.src     = '';       // 브라우저 메모리 해제
+            img.removeAttribute('src');   // 브라우저 메모리 해제
         }
         delete box.dataset.loaded;  // 다음 열기 시 재로드 가능
         box.style.display = 'none';
+    }
+
+    // 시야(fov)에 맞춰 이미지 로드. 소스가 실패/지연되면 다음 소스로 넘어간다.
+    function loadPreview(box, srcIdx) {
+        const img     = box.querySelector('img');
+        const loading = box.querySelector('.gi_loading');
+        const label   = box.querySelector('.gi_preview_src');
+        const ra  = parseFloat(box.dataset.ra), dec = parseFloat(box.dataset.dec);
+        const src = DSS_SOURCES[srcIdx];
+
+        clearTimeout(img._krTimer);
+        img.onload = img.onerror = null;
+
+        if (!src) {                                   // 모든 소스 실패
+            delete box.dataset.loaded;
+            if (loading) { loading.style.display = 'block'; loading.textContent = t('No image'); }
+            return;
+        }
+
+        box.dataset.loaded = '1';
+        if (loading) { loading.style.display = 'block'; loading.textContent = t('Loading...'); }
+        img.style.display = 'none';
+
+        const next = () => {
+            img.onload = img.onerror = null;
+            img.removeAttribute('src');
+            // 컬러 소스(CDS)가 이 망에서 안 되면 이번 실행 동안은 건너뛰어 매번 기다리지 않게 함
+            if (srcIdx === 0) cdsUnavailable = true;
+            loadPreview(box, srcIdx + 1);
+        };
+        img._krTimer = setTimeout(next, src.timeout);
+        img.onload = () => {
+            clearTimeout(img._krTimer);
+            img.onload = img.onerror = null;
+            if (srcIdx === 0) cdsUnavailable = false;
+            if (loading) loading.style.display = 'none';
+            img.className = srcIdx === 0 ? '' : 'gi_mono';
+            img.style.display = 'block';
+            if (label) label.textContent = `${t(src.label)} · ${t('FOV')} ${fovText(previewFov)}`;
+        };
+        img.onerror = () => { clearTimeout(img._krTimer); next(); };
+        img.src = src.url(ra, dec, previewFov);
+    }
+
+    // 시야 변경: 저장 후 열려 있는 미리보기를 다시 불러온다
+    function setPreviewFov(fov, event) {
+        if (event) event.stopPropagation();
+        if (!FOV_OPTIONS.includes(fov)) return;
+        previewFov = fov;
+        try { localStorage.setItem('kr_dss_fov', String(fov)); } catch (e) {}
+        document.querySelectorAll('.gi_fov_btn').forEach(b =>
+            b.classList.toggle('on', parseFloat(b.dataset.fov) === fov));
+        if (activePreviewIdx !== null) {
+            const box = document.getElementById('gi_preview_' + activePreviewIdx);
+            if (box && box.style.display === 'block') loadPreview(box, firstSource());
+        }
     }
 
     // ── DSS 미리보기 토글 ─────────────────────────────────────────────────
@@ -211,33 +286,9 @@ const AHGuide = (() => {
         box.style.display = 'block';
 
         if (!box.dataset.loaded) {
-            box.dataset.loaded = '1';
-            const img     = box.querySelector('img');
-            const loading = box.querySelector('.gi_loading');
-
-            if (loading) { loading.style.display = 'inline'; loading.textContent = t('Loading...'); }
-            img.style.display = 'none';
-
-            // 12초 안에 응답 없으면 타임아웃
-            const timer = setTimeout(() => {
-                img.onload  = null;
-                img.onerror = null;
-                img.src     = '';
-                delete box.dataset.loaded;
-                if (loading) loading.textContent = t('Timeout — tap to retry');
-            }, 12000);
-
-            img.onload = () => {
-                clearTimeout(timer);
-                if (loading) loading.style.display = 'none';
-                img.style.display = 'block';
-            };
-            img.onerror = () => {
-                clearTimeout(timer);
-                delete box.dataset.loaded;
-                if (loading) loading.textContent = t('No image');
-            };
-            img.src = getDSSThumbUrl(ra, dec, size);
+            box.dataset.ra  = ra;
+            box.dataset.dec = dec;
+            loadPreview(box, firstSource());
         }
     }
 
@@ -271,9 +322,15 @@ const AHGuide = (() => {
   <button class="gi_prev_btn" onclick="AHGuide.togglePreview(${obj.idx},${obj.ra},${obj.dec},${obj.size},event)">🔭</button>
 </div>
 <div class="gi_preview_box" id="gi_preview_${obj.idx}">
-  <span class="gi_loading">로딩 중...</span>
-  <img src="" alt="${obj.name}" style="display:none" />
-  <span class="gi_preview_label">${obj.name} — DSS</span>
+  <div class="gi_preview_frame">
+    <span class="gi_loading">${t('Loading...')}</span>
+    <img alt="${obj.name}" style="display:none" />
+  </div>
+  <div class="gi_preview_label">
+    <span>${obj.name}${obj.size ? ' (' + obj.size + '′)' : ''} — <span class="gi_preview_src">DSS2</span></span>
+    <span class="gi_fov_row">${FOV_OPTIONS.map(f =>
+        `<button class="gi_fov_btn${f === previewFov ? ' on' : ''}" data-fov="${f}" onclick="AHGuide.setPreviewFov(${f},event)">${fovText(f)}</button>`).join('')}</span>
+  </div>
 </div>`;
         }
         el.innerHTML = html;
@@ -392,5 +449,5 @@ const AHGuide = (() => {
         close();
     }
 
-    return { open, close, refresh, updateFilters, toggleType, toggleSort, selectObject, togglePreview };
+    return { open, close, refresh, updateFilters, toggleType, toggleSort, selectObject, togglePreview, setPreviewFov };
 })();

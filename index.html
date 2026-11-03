@@ -264,26 +264,47 @@ input[type=submit] { width:10mm;}
     background: #0a0000;
     border-bottom: 1px solid #330000;
 }
-.gi_preview_box img {
-    width: 300px;
-    height: 300px;
-    object-fit: cover;
-    display: none;
+/* KR: 모든 대상을 같은 시야·같은 크기의 정사각 틀에 표시 → 대상 크기 비교 가능 */
+.gi_preview_frame {
+    position: relative;
+    width: min(300px, 100%);
+    aspect-ratio: 1 / 1;
     background: #000;
     border: 1px solid #440000;
+    box-sizing: border-box;
 }
+.gi_preview_box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+.gi_preview_box img.gi_mono { filter: contrast(1.25) brightness(0.85); }
 .gi_loading {
+    position: absolute;
+    left: 0; right: 0; top: 45%;
+    text-align: center;
     display: block;
     color: #550000;
     font-size: 3.5mm;
-    padding: 3mm 0;
 }
 .gi_preview_label {
-    display: block;
-    color: #660000;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1mm;
+    width: min(300px, 100%);
+    color: #880000;
     font-size: 3mm;
     margin-top: 1mm;
 }
+.gi_fov_row { display: inline-flex; gap: 1mm; }
+.gi_fov_btn {
+    height: auto; font-size: 3mm; padding: 0.5mm 2mm;
+    border: 1px solid #440000; color: #882222; background: black;
+}
+.gi_fov_btn.on { border-color: #ff4444; color: #ff4444; }
 </style>
 <body>
 <canvas style="position:absolute; left:0; top:0; z-index:-1"  id="myCanvas" width="640" height="480"> </canvas>
@@ -8213,6 +8234,8 @@ var i18n_dicts = {
         "Loading...": "로딩 중...",
         "Timeout — tap to retry": "시간 초과 — 다시 눌러 재시도",
         "No image": "이미지 없음",
+        "FOV": "시야",
+        "DSS2 color": "DSS2 컬러",
         "No objects nearby": "주변 천체 없음 — 반경이나 한계등급을 조정해 보세요.",
         "Original app by Artyom Beilis, open source on GitHub (GPL-3.0).": "원본 앱은 Artyom Beilis가 제작하였으며 GitHub에 GPL-3.0으로 공개되어 있습니다.",
         "BIH Lab version adds Korean UI and an observation guide for Korean users.": "BIH Lab 버전은 한국 사용자를 위해 한국어 UI와 관측 가이드 기능을 추가하였습니다.",
@@ -10501,7 +10524,7 @@ function getBrowserName()
 	return 'Other';
 }
 
-var KR_BUILD = 'v26'; // KR: service-worker.js CACHE_NAME 버전과 맞출 것
+var KR_BUILD = 'v27'; // KR: service-worker.js CACHE_NAME 버전과 맞출 것
 function updateDiagInfo()
 {
 	var el = document.getElementById('diag_info');
