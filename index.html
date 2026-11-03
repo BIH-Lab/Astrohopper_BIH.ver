@@ -133,6 +133,9 @@ input[type=text], input[type=text]:focus, input[type=submit], input[type=number]
 input[type=submit] { width:10mm;}
 
 /* ── AstroHopper KR 추가 스타일 ── */
+/* 탐색 모드 버튼: 켜지면 반전 표시 */
+.explore_but { font-size: 6mm; line-height: 1; margin-right: 1mm; }
+.explore_but.explore_on { background-color: red; color: black; }
 #guide_button, #guide_button_small {
     position: fixed;
     right: calc(3mm + env(safe-area-inset-right, 0px));
@@ -335,8 +338,10 @@ input[type=submit] { width:10mm;}
 		<button class="incdec_but" onclick="decFOV();">+</button>
 		&angle;<span class="fov_val">60&deg;</span>
 		<button style="display:inline" class="comp_but settings_background" onclick="showConfig('inline');">&nbsp;</button>
+		<button class="comp_but explore_but" id="explore_button" onclick="toggleExploreMode();" title="Explore">&#x2725;</button>
 </p>
 <p class="only_tiny_b first_line_controls"><button class="comp_but settings_background" onclick="showConfig('inline');">&nbsp;</button>
+<button class="comp_but explore_but" onclick="toggleExploreMode();" title="Explore">&#x2725;</button>
 </p>
 <p class="first_line_controls" style="display:none" id="wl_ctl"><button  class="incdec_but" onclick="watchListItemUpdate(-1);">&lt;</button> <button class="incdec_but" onclick="watchListItemUpdate(1);">&gt;</button><br/><i><span id="wl_target_name"></span></i></p>
 <p class="first_line_controls" style="display:none" id="show_info">
@@ -8126,6 +8131,7 @@ var i18n_dicts = {
         "Azimuth": "방위",
         "Gyro": "자이로",
         "Manual": "수동",
+        "Explore": "탐색",
         "[hide]": "[숨기기]",
         "[edit]": "[편집]",
         "None": "없음",
@@ -9242,6 +9248,8 @@ function align()
 {
 	if(global_expecting_select == doNothing)
 		return;
+	// KR: 정렬은 망원경(센서) 모드에서만 의미가 있으므로 탐색 모드 해제
+	exitExploreMode();
 	/// realign in manual mode
 	if(global_use_gyro && !global_use_compass) {
 		// keep bearing
@@ -9427,8 +9435,110 @@ function smoothForward(raw)
 	return global_smooth_fwd;
 }
 
+// ===== KR: 탐색 모드 (스텔라리움 방식) =====
+// 센서를 쓰지 않고 손가락(또는 마우스) 드래그로 좌우·위아래를 모두 움직인다.
+// 망원경 모드(센서)와 분리: 정렬(Align)을 누르면 망원경 모드로 자동 복귀.
+var global_explore_mode = false;
+var global_explore = { az: 0, alt: 30 };   // 도 단위, az: 북=0 동=90
+
+function enterExploreMode()
+{
+	if(global_explore_mode)
+		return;
+	// 현재 보고 있는 방향에서 시작 (화면이 튀지 않게)
+	var fwd = getCameraRays()[2];
+	var alt = Math.asin(Math.max(-1,Math.min(1,fwd[2]))) * 180 / Math.PI;
+	var az = Math.atan2(fwd[0],fwd[1]) * 180 / Math.PI;
+	global_explore.az = isFinite(az) ? (az + 360) % 360 : 0;
+	global_explore.alt = isFinite(alt) ? Math.max(-89.5,Math.min(89.5,alt)) : 30;
+	global_explore_mode = true;
+	updateExploreButton();
+}
+
+function exitExploreMode()
+{
+	if(!global_explore_mode)
+		return;
+	global_explore_mode = false;
+	updateExploreButton();
+}
+
+function toggleExploreMode()
+{
+	if(global_explore_mode)
+		exitExploreMode();
+	else
+		enterExploreMode();
+}
+
+function updateExploreButton()
+{
+	var bs = document.getElementsByClassName('explore_but');
+	for(var i=0;i<bs.length;i++)
+		bs[i].classList.toggle('explore_on',global_explore_mode);
+}
+
+function exploreMove(prev,cur)
+{
+	var fov = getFOV();
+	// 손가락으로 하늘을 '잡아 끄는' 방향: 오른쪽으로 끌면 시선은 왼쪽(서쪽)으로, 아래로 끌면 시선은 위로
+	var daz = (cur.x - prev.x) / canvas.width * fov.lr;
+	var dalt = (cur.y - prev.y) / canvas.height * fov.td;
+	global_explore.az = ((global_explore.az - daz) % 360 + 360) % 360;
+	global_explore.alt = Math.max(-89.5,Math.min(89.5,global_explore.alt + dalt));
+}
+
+function exploreCameraRays()
+{
+	var d2r = Math.PI / 180;
+	var az = global_explore.az * d2r, alt = global_explore.alt * d2r;
+	var fwd = [Math.sin(az)*Math.cos(alt), Math.cos(az)*Math.cos(alt), Math.sin(alt)];
+	var lft = [-Math.cos(az), Math.sin(az), 0.0];
+	var top = crossProd(fwd,lft);
+	return [top,lft,fwd];
+}
+
+// PC(마우스)에서도 탐색 모드 드래그 지원. 드래그 직후의 click은 별 선택으로 처리하지 않음.
+var global_mouse_prev = null;
+var global_mouse_dragged = false;
+function exploreMouseDown(e)
+{
+	if(!global_explore_mode || e.button !== 0)
+		return;
+	// UI(버튼·입력·설정창·가이드 패널) 위에서 시작한 드래그는 무시
+	if(e.target && e.target.closest && e.target.closest('button,input,textarea,select,a,.config_div,#guide_panel,#guide_backdrop'))
+		return;
+	global_mouse_prev = { x: e.clientX, y: e.clientY };
+	global_mouse_dragged = false;
+}
+function exploreMouseMove(e)
+{
+	if(!global_mouse_prev)
+		return;
+	var cur = { x: e.clientX, y: e.clientY };
+	if(Math.abs(cur.x - global_mouse_prev.x) + Math.abs(cur.y - global_mouse_prev.y) > 2)
+		global_mouse_dragged = true;
+	if(global_mouse_dragged) {
+		exploreMove(global_mouse_prev,cur);
+		global_mouse_prev = cur;
+	}
+}
+function exploreMouseUp(e)
+{
+	global_mouse_prev = null;
+}
+function exploreClickGuard(e)
+{
+	if(global_mouse_dragged) {
+		global_mouse_dragged = false;
+		e.stopPropagation();
+	}
+}
+
 function getCameraRays()
 {
+	if(global_explore_mode)
+		return exploreCameraRays();
 	// zxy
 	// after Mul comonents are [S,E,D]
 	var alpha = global_use_gyro ? gdata.alpha_gyro + gdata.alpha_diff : currentYaw();
@@ -10196,6 +10306,7 @@ function currentYaw()
 
 function yawSourceName()
 {
+	if(global_explore_mode) return _tr('Explore');
 	if(global_use_gyro) return _tr('Aligned');
 	if(global_use_compass) return _tr('Compass');
 	if(global_gyro_yaw_ok) return _tr('Gyro');
@@ -10346,9 +10457,13 @@ function manualUp(e)
 }
 function moveSky(prev,cur)
 {
-	if(global_use_compass)
-		return;
 	if(!prev || !cur)
+		return;
+	if(global_explore_mode) {
+		exploreMove(prev,cur);
+		return;
+	}
+	if(global_use_compass)
 		return;
 	var fov =  getFOV().lr;
 	var da = (cur.x - prev.x) / canvas.width * fov;;
@@ -11158,6 +11273,11 @@ incDecLF(0);
     showOnStartup(qs,-1);
 }
 document.body.addEventListener('click',selectionEvent);
+// KR: 탐색 모드 마우스 드래그 (드래그 직후 click은 캡처 단계에서 차단)
+document.body.addEventListener('mousedown',exploreMouseDown);
+window.addEventListener('mousemove',exploreMouseMove);
+window.addEventListener('mouseup',exploreMouseUp);
+document.body.addEventListener('click',exploreClickGuard,true);
 document.body.addEventListener('touchstart',manualDown);
 document.body.addEventListener('touchend',manualUp);
 document.body.addEventListener('touchcancel',manualUp);
