@@ -8123,6 +8123,9 @@ var i18n_dicts = {
         "No Gyro": "자이로 없음",
         "Sensor": "센서",
         "Compass": "나침반",
+        "Azimuth": "방위",
+        "Gyro": "자이로",
+        "Manual": "수동",
         "[hide]": "[숨기기]",
         "[edit]": "[편집]",
         "None": "없음",
@@ -9242,7 +9245,7 @@ function align()
 	/// realign in manual mode
 	if(global_use_gyro && !global_use_compass) {
 		// keep bearing
-		gdata.alpha_user_offset = gdata.alpha_gyro + gdata.alpha_diff - gdata.alpha;
+		gdata.alpha_user_offset = gdata.alpha_gyro + gdata.alpha_diff - yawBase();
 	}
 	setUseGyro(false,_tr("Select Star"),"?");
 	global_align_index = -1;
@@ -9327,7 +9330,7 @@ function selectAlign(index)
 	global_align_matrix = matMul(daz_mat,dalt_mat); 
 	
 	setUseGyro(true);
-	gdata.alpha_diff = (gdata.alpha + gdata.alpha_user_offset) - gdata.alpha_gyro;
+	gdata.alpha_diff = currentYaw() - gdata.alpha_gyro;
 	global_align_index = index;
 	global_expecting_select = selectTarget;
 }
@@ -9428,7 +9431,7 @@ function getCameraRays()
 {
 	// zxy
 	// after Mul comonents are [S,E,D]
-	var alpha = global_use_gyro ? gdata.alpha_gyro + gdata.alpha_diff : gdata.alpha + gdata.alpha_user_offset;
+	var alpha = global_use_gyro ? gdata.alpha_gyro + gdata.alpha_diff : currentYaw();
 	var M = getRotationMatrix(alpha,gdata.beta,gdata.gamma);
 	//var top = mvec(M,[1,0,0]);
 	//var lft = mvec(M,[0,1,0]);
@@ -10140,6 +10143,13 @@ function getLocation() {
 function gyroListener(event)
 {
 	if(!(event.alpha === null)) {
+		if(!global_gyro_yaw_ok) {
+			// KR: 자이로 방위를 처음 받으면 현재 화면 방위를 유지한 채 자이로 기준으로 전환
+			var cur = currentYaw();
+			gdata.alpha_gyro = event.alpha;
+			global_gyro_yaw_ok = true;
+			gdata.alpha_user_offset = cur - yawBase();
+		}
 		gdata.alpha_gyro = event.alpha;
 		setOrientMsg('');
 	}
@@ -10159,36 +10169,92 @@ function gyroListener(event)
 	formatValue("ang_g",event.gamma);
 }
 
+// ===== KR: 방위(좌우) 소스 관리 =====
+// 원본: 나침반이 꺼진 상태(나침반 없음/수동 모드)에서 정렬 전에는 방위가 고정값 + 드래그뿐이라
+//       폰을 좌우로 돌려도 화면이 따라오지 않았다(위아래는 기울기로 동작).
+//       또한 시작 직후 나침반 이벤트가 null을 한 번만 보내도 나침반이 영구히 꺼졌다.
+// 수정: 나침반이 없으면 자이로(상대 방위)로 좌우 회전을 따라가고, 드래그 보정은 그대로 더한다.
+//       나침반 값이 다시 들어오면 자동 복구, 나침반 이벤트가 끊기면 자이로로 자동 전환.
+var global_compass_ts = 0;          // 마지막 유효 나침반 이벤트 시각
+var global_gyro_yaw_ok = false;     // 자이로 상대 방위(alpha) 수신 여부
+var global_compass_auto_off = false; // 나침반이 '자동으로' 꺼졌는지 (사용자 수동 선택과 구분)
+var global_user_manual = false;     // 사용자가 손 버튼으로 수동 모드를 선택했는지
+
+function yawBase()
+{
+	if(global_use_compass)
+		return gdata.alpha;
+	if(global_gyro_yaw_ok)
+		return gdata.alpha_gyro;
+	return gdata.alpha;
+}
+
+function currentYaw()
+{
+	return yawBase() + gdata.alpha_user_offset;
+}
+
+function yawSourceName()
+{
+	if(global_use_gyro) return _tr('Aligned');
+	if(global_use_compass) return _tr('Compass');
+	if(global_gyro_yaw_ok) return _tr('Gyro');
+	return _tr('Manual');
+}
+
+function onCompassValue(abs_alpha)
+{
+	gdata.compass_alpha = abs_alpha;
+	global_compass_ts = Date.now();
+	if(global_use_compass) {
+		gdata.alpha = abs_alpha;
+	}
+	else if(global_compass_auto_off && !global_user_manual) {
+		// 일시적으로 끊겼던 나침반이 돌아오면 자동 복구
+		compassMode();
+	}
+	formatValue("ang_c",abs_alpha);
+}
+
+function onCompassMissing()
+{
+	if(global_use_compass)
+		noCompass();
+	formatValue("ang_c",null);
+}
+
 function deviceOrientationListenerIOS(event) {
-	if(!(event.webkitCompassHeading === null)) {
-        var abs_alpha = 360 - event.webkitCompassHeading;
-		if(global_use_compass)
-			gdata.alpha = abs_alpha;
-		gdata.compass_alpha = abs_alpha
-	    formatValue("ang_c",abs_alpha);
+	var h = event.webkitCompassHeading;
+	if(h !== null && h !== undefined && !isNaN(h)) {
+		onCompassValue(360 - h);
 	}
 	else {
-		noCompass();
-	    formatValue("ang_c",null);
+		onCompassMissing();
 	}
 }
 
 function deviceOrientationListener(event) {
-	if(!(event.alpha === null)) {
-		if(global_use_compass)
-			gdata.alpha = event.alpha;
-		gdata.compass_alpha = event.alpha;
+	if(event.alpha !== null && event.alpha !== undefined) {
+		onCompassValue(event.alpha);
 	}
 	else {
-		noCompass();
+		onCompassMissing();
 	}
-	formatValue("ang_c",event.alpha);
 }
 
+// 나침반 이벤트가 2초 이상 안 들어오는데 자이로 이벤트는 들어오면 자이로로 전환 (updateDiagInfo에서 1초마다 호출)
+function compassWatchdog(sensor_events)
+{
+	if(global_use_compass && sensor_events > 0 && Date.now() - global_compass_ts > 2000)
+		noCompass();
+}
 
 function noCompass()
 {
+	var cur = currentYaw();
 	global_use_compass = false;
+	global_compass_auto_off = true;
+	gdata.alpha_user_offset = cur - yawBase(); // 화면이 튀지 않도록 현재 방위 유지
 	document.getElementById("nocompass_button").style.display="inline";
 	document.getElementById("compass_button").style.display="none";
 	document.getElementById("hand_button").style.display="none";
@@ -10196,9 +10262,14 @@ function noCompass()
 
 function manualMode()
 {
+	var cur = currentYaw();
 	global_use_compass = false;
-	gdata.alpha_user_offset = gdata.alpha;
-	gdata.alpha = 0;
+	global_user_manual = true;
+	global_compass_auto_off = false;
+	if(!global_gyro_yaw_ok)
+		gdata.alpha = 0;
+	gdata.alpha_user_offset = cur - yawBase(); // 현재 방위 유지
+	document.getElementById("nocompass_button").style.display="none";
 	document.getElementById("compass_button").style.display="inline";
 	document.getElementById("hand_button").style.display="none";
 }
@@ -10206,8 +10277,11 @@ function manualMode()
 function compassMode()
 {
 	global_use_compass = true;
+	global_user_manual = false;
+	global_compass_auto_off = false;
 	gdata.alpha_user_offset = 0;
 	gdata.alpha = gdata.compass_alpha;
+	document.getElementById("nocompass_button").style.display="none";
 	document.getElementById("compass_button").style.display="none";
 	document.getElementById("hand_button").style.display="inline";
 }
@@ -10402,8 +10476,9 @@ function updateDiagInfo()
 			' · ' + _tr('Sensor') + ' ' + global_sensor_count + 'Hz' +
 			' · ' + global_fps_count + 'fps' +
 			' · ' + global_last_draw_ms + 'ms' +
-			' · ' + _tr('Compass') + ' ' + (global_use_compass ? 'ON' : 'OFF');
+			' · ' + _tr('Azimuth') + ': ' + yawSourceName();
 	}
+	compassWatchdog(global_sensor_count);
 	global_sensor_count = 0;
 	global_fps_count = 0;
 }
