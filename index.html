@@ -21,7 +21,7 @@
 
 </head>
 <style>
-body, td { margin:3mm 0 0 0; font-size: 5mm ; color:red ; font-family: sans; background-color:black }
+body, td { margin:3mm 0 0 0; font-size: 5mm ; color:red ; font-family: sans, sans-serif; background-color:black } /* KR: 'sans'는 일반 글꼴명이 아님 → Safari에서 Times로 떨어지던 문제 */
 html, body { overscroll-behavior: none; touch-action: none; }
 .config_div, #guide_panel { touch-action: pan-y; }
 /* KR: 노치/상태바/홈 인디케이터 영역 회피 (iOS 설치형 앱 black-translucent, Android 컷아웃) */
@@ -9019,7 +9019,9 @@ function showConfig(v)
 
 function largeF(n,s)
 {
-    return (s+global_large_font) + "mm " +n;
+    // KR: 'Sans'/'Serif'는 일반(generic) 글꼴명이 아니어서 Safari는 Times로 대체함 → 표준 대체 글꼴 지정
+    var fb = (n == 'Serif') ? ', serif' : ', sans-serif';
+    return (s+global_large_font) + "mm " + n + fb;
 }
 
 function toggleFS(fs)
@@ -10499,7 +10501,7 @@ function getBrowserName()
 	return 'Other';
 }
 
-var KR_BUILD = 'v25'; // KR: service-worker.js CACHE_NAME 버전과 맞출 것
+var KR_BUILD = 'v26'; // KR: service-worker.js CACHE_NAME 버전과 맞출 것
 function updateDiagInfo()
 {
 	var el = document.getElementById('diag_info');
@@ -11193,6 +11195,11 @@ incDecLF(0);
     showOnStartup(qs,-1);
 }
 document.body.addEventListener('click',selectionEvent);
+// KR: iOS Safari는 user-scalable=no를 무시하므로 두 손가락 제스처로 페이지 자체가 확대되지 않게 차단
+// (앱의 핀치 줌은 touch 이벤트로 별도 처리되므로 영향 없음)
+['gesturestart','gesturechange','gestureend'].forEach(function(ev) {
+	document.addEventListener(ev,function(e) { e.preventDefault(); },{ passive: false });
+});
 document.body.addEventListener('touchstart',manualDown);
 document.body.addEventListener('touchend',manualUp);
 document.body.addEventListener('touchcancel',manualUp);
