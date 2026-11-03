@@ -4,7 +4,7 @@
 <title>AstroHopper KR - BIH_ver</title>
 <link rel="manifest" href="manifest.json">
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="AstroHopper">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,6 +24,8 @@
 body, td { margin:3mm 0 0 0; font-size: 5mm ; color:red ; font-family: sans; background-color:black }
 html, body { overscroll-behavior: none; touch-action: none; }
 .config_div, #guide_panel { touch-action: pan-y; }
+/* KR: 노치/상태바/홈 인디케이터 영역 회피 (iOS 설치형 앱 black-translucent, Android 컷아웃) */
+body { margin-top: calc(3mm + env(safe-area-inset-top, 0px)); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
 a:link {color: red;}
 a:visited { color: red; }
 a:active { color:red; }
@@ -133,8 +135,8 @@ input[type=submit] { width:10mm;}
 /* ── AstroHopper KR 추가 스타일 ── */
 #guide_button, #guide_button_small {
     position: fixed;
-    right: 3mm;
-    bottom: 3mm;
+    right: calc(3mm + env(safe-area-inset-right, 0px));
+    bottom: calc(3mm + env(safe-area-inset-bottom, 0px));
     z-index: 50;
     opacity: 0.85;
 }
@@ -155,6 +157,8 @@ input[type=submit] { width:10mm;}
     position: fixed;
     left: 0; right: 0; bottom: 0;
     height: 55vh;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
     background: black;
     z-index: 100;
     overflow-x: hidden;
@@ -591,6 +595,7 @@ input[type=submit] { width:10mm;}
 <div class="l2r">
     <p><button class="incdec_but" onclick="requestGeolocation();">&#x21bb;</button> GPS: <span id="lat">Unknown</span>, <span id="lon">Unknown</span></p>
     <p>&#x03B1;=<span id="ang_a"></span> &#x03B2;=<span id="ang_b"></span> &#x03B3;=<span id="ang_g"></span> C=<span id="ang_c"></span> UTC=<span id="utc_time"></span></p>
+    <p id="diag_info" style="font-size:3.5mm"></p>
 </div>
 <table>
 <th><td colspan="2" style="text-align:left" class="tr">GPS Override</td></th>
@@ -8116,6 +8121,8 @@ var i18n_dicts = {
         "Not Aligned": "미정렬",
         "Select Star": "별 선택",
         "No Gyro": "자이로 없음",
+        "Sensor": "센서",
+        "Compass": "나침반",
         "[hide]": "[숨기기]",
         "[edit]": "[편집]",
         "None": "없음",
@@ -8919,7 +8926,8 @@ var global_target_index = -1;
 var global_align_index = -1;
 var global_expecting_select = null;
 var global_camera_projection = true;
-var global_expected_frame_rate_ms = 66;
+var global_expected_frame_rate_ms = 33; // KR: 66(15fps) → 33(30fps), rAF 루프로 전환
+var global_last_draw_ms = 0;
 var global_use_compass = false;
 var global_dso_mag = parseInt(document.getElementById('dso_level_val').innerHTML);
 var global_large_font = 0;
@@ -9007,11 +9015,20 @@ function largeF(n,s)
 
 function toggleFS(fs)
 {
-	if(fs) {
-		document.documentElement.requestFullscreen({navigationUI:'hide'});
-	}
-	else {
-		document.exitFullscreen();
+	// KR: 이미 전체화면이거나 미지원(iPhone Safari)인 경우 예외가 나지 않도록 방어
+	try {
+		var p = null;
+		if(fs) {
+			if(!document.fullscreenElement && document.documentElement.requestFullscreen)
+				p = document.documentElement.requestFullscreen({navigationUI:'hide'});
+		}
+		else {
+			if(document.fullscreenElement && document.exitFullscreen)
+				p = document.exitFullscreen();
+		}
+		if(p && p.catch) p.catch(function(e) { console.warn('fullscreen:', e); });
+	} catch(e) {
+		console.warn('fullscreen:', e);
 	}
 }
 
@@ -9020,7 +9037,9 @@ let wakeLock = null;
 async function toggleSWL(swl) {
   try {
     if (swl) {
+      if (!('wakeLock' in navigator)) return;
       wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
     } else if (wakeLock) {
       await wakeLock.release();
       wakeLock = null;
@@ -9370,6 +9389,41 @@ function crossProd(a,b)
 		 a[0]*b[1] - a[1]*b[0] ];
 }
 
+// KR: 센서 떨림 완화 - 카메라 전방 벡터에 시간 기반 저역통과 필터 적용.
+// 오일러 각을 개별 평활화하면 360°/0° 경계와 짐벌락에서 튀므로 벡터로 처리한다.
+// dt 기반이라 한 프레임에 여러 번 호출돼도 결과가 같다. 큰 점프(모드 전환 등)는 즉시 반영.
+var global_smooth_fwd = null;
+var global_smooth_ts = 0;
+var global_smooth_tau_ms = 70;
+var global_last_fwd_hor = [0,1,0];
+function smoothForward(raw)
+{
+	var now = (window.performance && performance.now) ? performance.now() : Date.now();
+	var len = Math.sqrt(raw[0]*raw[0] + raw[1]*raw[1] + raw[2]*raw[2]);
+	if(!(len > 0)) {
+		return global_smooth_fwd ? global_smooth_fwd : [0,1,0];
+	}
+	raw = [raw[0]/len, raw[1]/len, raw[2]/len];
+	if(!global_smooth_fwd) {
+		global_smooth_fwd = raw;
+		global_smooth_ts = now;
+		return raw;
+	}
+	var dt = now - global_smooth_ts;
+	global_smooth_ts = now;
+	var dot = sprod(raw,global_smooth_fwd);
+	if(dot < 0.966 || dt > 500) { // > ~15deg 또는 오래 멈춘 뒤
+		global_smooth_fwd = raw;
+		return raw;
+	}
+	var k = 1 - Math.exp(-Math.max(dt,0) / global_smooth_tau_ms);
+	var s = global_smooth_fwd;
+	var v = [s[0] + (raw[0]-s[0])*k, s[1] + (raw[1]-s[1])*k, s[2] + (raw[2]-s[2])*k];
+	var vl = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+	global_smooth_fwd = [v[0]/vl, v[1]/vl, v[2]/vl];
+	return global_smooth_fwd;
+}
+
 function getCameraRays()
 {
 	// zxy
@@ -9382,12 +9436,20 @@ function getCameraRays()
 	
 	
 
-	var fwd = mvec(M,[0,1,0]);
+	var fwd = smoothForward(mvec(M,[0,1,0]));
 
 	// make sure left  is horizontal
 
 	var fwd_hlen = Math.sqrt(fwd[0]*fwd[0] + fwd[1]*fwd[1])
-	var fwd_hor = [fwd[0]/fwd_hlen,fwd[1]/fwd_hlen,0.0];
+	var fwd_hor;
+	if(fwd_hlen > 1e-6) {
+		fwd_hor = [fwd[0]/fwd_hlen,fwd[1]/fwd_hlen,0.0];
+		global_last_fwd_hor = fwd_hor;
+	}
+	else {
+		// KR: 천정 근처 - 수평 성분이 0이면 직전 방향 유지 (NaN 방지)
+		fwd_hor = global_last_fwd_hor;
+	}
 
 	var lft = [-fwd_hor[1],fwd_hor[0],0.0]
 	var top = crossProd(fwd,lft);
@@ -9789,7 +9851,12 @@ function updateDebugTime(v)
     var mins=Math.floor(v / 60000);
     var h = Math.floor(mins / 60) % 24
     var m = mins % 60;
-    document.getElementById('utc_time').innerHTML = ('' + h).padStart(2,'0') + ':' + (m+'').padStart(2,'0')
+    var s = ('' + h).padStart(2,'0') + ':' + (m+'').padStart(2,'0');
+    // KR: 매 프레임 DOM 갱신 방지 - 값이 바뀔 때만 반영
+    if(s !== updateDebugTime.last) {
+        updateDebugTime.last = s;
+        document.getElementById('utc_time').innerHTML = s;
+    }
 
 }
 
@@ -9800,10 +9867,32 @@ function validAlignType(t)
     return t!='Ca';
 }
 
+// KR: 렌더 루프 - requestAnimationFrame 기반.
+// 기존 setTimeout 방식은 한 프레임이 33ms를 넘으면 66ms를 추가로 대기해
+// 느린 브라우저(Firefox 등)에서 프레임이 절반 이하로 떨어졌다.
+// 다음 프레임을 그리기 전에 예약하므로 그리기 중 예외가 나도 루프가 멈추지 않는다.
+var global_frame_req = null;
+var global_last_frame_ts = -1e9;
+var global_fps_count = 0;
+function frameTick(ts)
+{
+	global_frame_req = null;
+	if(ts - global_last_frame_ts < global_expected_frame_rate_ms - 4) {
+		global_frame_req = requestAnimationFrame(frameTick);
+		return;
+	}
+	global_last_frame_ts = ts;
+	plotStars();
+}
+
 function plotStars()
 {
 	var start=Date.now();
-	
+	if(global_frame_req === null) {
+		global_frame_req = requestAnimationFrame(frameTick);
+	}
+	global_fps_count++;
+
 	if(canvas.width != document.body.clientWidth || canvas.height != document.body.clientHeight) {
 		canvas.width = document.body.clientWidth;
 		canvas.height = document.body.clientHeight;
@@ -9820,10 +9909,12 @@ function plotStars()
 	for(var i=0;i<allstars.length;i++) {
 		var st = allstars[i].t;
 		
-		if(st == 'P') {
+		if(st == 'P' && !(Math.abs(gdata.time - (allstars[i]._kr_pt || 0)) < 2000)) {
+		    // KR: 행성 위치는 2초에 한 번만 재계산 (매 프레임 계산 → 부하)
 		    let pos = getSolarSystemObject(allstars[i].name);
 		    allstars[i].RA = pos.RA;
 		    allstars[i].DE = pos.DE;
+		    allstars[i]._kr_pt = gdata.time;
 		}
 		
 		//logObject(allstars[i]);
@@ -9876,13 +9967,7 @@ function plotStars()
 	}
 	plotLines(camRays);
 	plotAltAz(camRays[2]);
-	var passed = Date.now() - start;
-	if(passed > global_expected_frame_rate_ms / 2) {
-		setTimeout(plotStars,global_expected_frame_rate_ms);
-	}
-	else {
-		setTimeout(plotStars,global_expected_frame_rate_ms-passed);
-	}
+	global_last_draw_ms = Date.now() - start;
 }
 
 
@@ -10056,13 +10141,19 @@ function gyroListener(event)
 {
 	if(!(event.alpha === null)) {
 		gdata.alpha_gyro = event.alpha;
-		gdata.beta = event.beta;
-		gdata.gamma = event.gamma;
-		document.getElementById("orient").innerHTML = '';
+		setOrientMsg('');
 	}
 	else {
-		document.getElementById("orient").innerHTML = _tr("No Gyro");
+		setOrientMsg(_tr("No Gyro"));
 	}
+	// KR: 자이로(alpha)가 없는 기기(일부 저가 갤럭시 A 등)도 기울기(beta/gamma)는
+	// 제공하므로 alpha와 무관하게 갱신한다. (기존: alpha가 null이면 화면 전체가 멈춤)
+	if(event.beta !== null && event.beta !== undefined &&
+	   event.gamma !== null && event.gamma !== undefined) {
+		gdata.beta = event.beta;
+		gdata.gamma = event.gamma;
+	}
+	global_sensor_count++;
 	formatValue("ang_a",event.alpha);
 	formatValue("ang_b",event.beta);
 	formatValue("ang_g",event.gamma);
@@ -10254,8 +10345,89 @@ function formatValue(uid,v)
 	else {
 		msg = v.toFixed(1);
 	}
-	document.getElementById(uid).innerHTML=msg;
+	// KR: 센서 이벤트(초당 60회 이상)마다 DOM을 다시 쓰지 않도록 값이 바뀔 때만 갱신
+	if(formatValue.cache[uid] !== msg) {
+		formatValue.cache[uid] = msg;
+		document.getElementById(uid).innerHTML=msg;
+	}
 }
+formatValue.cache = {};
+
+function setOrientMsg(msg)
+{
+	if(setOrientMsg.last !== msg) {
+		setOrientMsg.last = msg;
+		document.getElementById("orient").innerHTML = msg;
+	}
+}
+
+// ===== KR: 실행 환경 / 진단 정보 =====
+var global_sensor_count = 0;
+
+function getDisplayMode()
+{
+	try {
+		if(window.navigator.standalone) return 'standalone';
+		var modes = ['fullscreen','standalone','minimal-ui'];
+		for(var i=0;i<modes.length;i++) {
+			if(window.matchMedia && window.matchMedia('(display-mode: ' + modes[i] + ')').matches)
+				return modes[i];
+		}
+	} catch(e) {}
+	return 'browser';
+}
+
+function isInstalledApp()
+{
+	return getDisplayMode() != 'browser';
+}
+
+function getBrowserName()
+{
+	var ua = navigator.userAgent;
+	if(/SamsungBrowser/.test(ua)) return 'Samsung Internet';
+	if(/Firefox|FxiOS/.test(ua)) return 'Firefox';
+	if(/Edg\//.test(ua)) return 'Edge';
+	if(/CriOS|Chrome/.test(ua)) return 'Chrome';
+	if(/Safari/.test(ua)) return 'Safari';
+	return 'Other';
+}
+
+function updateDiagInfo()
+{
+	var el = document.getElementById('diag_info');
+	if(el) {
+		var mode = getDisplayMode();
+		el.innerHTML = getBrowserName() + ' · ' + (mode == 'browser' ? 'Web' : 'App(' + mode + ')') +
+			' · ' + _tr('Sensor') + ' ' + global_sensor_count + 'Hz' +
+			' · ' + global_fps_count + 'fps' +
+			' · ' + global_last_draw_ms + 'ms' +
+			' · ' + _tr('Compass') + ' ' + (global_use_compass ? 'ON' : 'OFF');
+	}
+	global_sensor_count = 0;
+	global_fps_count = 0;
+}
+
+// KR: 설치형 앱(fullscreen/standalone)에서는 이미 전체화면이므로 토글을 숨긴다.
+function setupFullscreenOption()
+{
+	var canFS = !!(document.documentElement.requestFullscreen) && !isInstalledApp();
+	var cb = document.getElementById('FS_checked');
+	var lb = document.querySelector('label[for="FS_checked"]');
+	if(cb) cb.style.display = canFS ? '' : 'none';
+	if(lb) lb.style.display = canFS ? '' : 'none';
+	document.addEventListener('fullscreenchange', function() {
+		if(cb) cb.checked = !!document.fullscreenElement;
+	});
+}
+
+// KR: 화면 켜짐 유지(Wake Lock)는 앱 전환/화면 꺼짐 시 브라우저가 자동 해제하므로 복귀 시 재요청
+document.addEventListener('visibilitychange', function() {
+	var cb = document.getElementById('SWL_checked');
+	if(document.visibilityState === 'visible' && cb && cb.checked && wakeLock === null) {
+		toggleSWL(true);
+	}
+});
 
 function parseCSV(v)
 {
@@ -10918,9 +11090,16 @@ document.body.addEventListener('touchmove',manualMove);
 dontPropMouseDown(["ui_but","incdec_but","config_div","comp_but","search_field"],["click","touchstart","touchend","touchmove","touchcancel"]);
 global_expecting_select = selectTarget;
 
+setupFullscreenOption();
+setInterval(updateDiagInfo, 1000);
+
+// KR: 서비스워커는 고정 URL로 등록한다.
+// (기존: "?"+Date.now()로 매 실행마다 새 워커가 설치되며 전체 파일을 재다운로드)
+// updateViaCache:'none' → 워커 스크립트 갱신 확인 시 HTTP 캐시를 거치지 않음
 window.addEventListener("load", () => {
         if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.register("service-worker.js?" + Date.now());
+            navigator.serviceWorker.register("service-worker.js", { updateViaCache: 'none' })
+                .catch(e => console.warn('SW register failed:', e));
         }
 });
 
