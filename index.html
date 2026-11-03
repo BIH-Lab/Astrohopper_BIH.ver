@@ -133,10 +133,14 @@ input[type=text], input[type=text]:focus, input[type=submit], input[type=number]
 input[type=submit] { width:10mm;}
 
 /* ── AstroHopper KR 추가 스타일 ── */
+/* 가이드 버튼: 아래 가운데. 화면 하단 좌우 모서리의 Az/Alt 표시를 가리지 않고,
+   맨 아래 가운데의 목표 방향 문구(Left/Right n°) 바로 위에 위치.
+   --kr-lf(글자 크기 설정, mm)는 incDecLF()에서 갱신 */
 #guide_button, #guide_button_small {
     position: fixed;
-    right: calc(3mm + env(safe-area-inset-right, 0px));
-    bottom: calc(3mm + env(safe-area-inset-bottom, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: calc(5px + (8mm + var(--kr-lf, 0mm)) + env(safe-area-inset-bottom, 0px));
     z-index: 50;
     opacity: 0.85;
 }
@@ -10495,7 +10499,7 @@ function getBrowserName()
 	return 'Other';
 }
 
-var KR_BUILD = 'v24'; // KR: service-worker.js CACHE_NAME 버전과 맞출 것
+var KR_BUILD = 'v25'; // KR: service-worker.js CACHE_NAME 버전과 맞출 것
 function updateDiagInfo()
 {
 	var el = document.getElementById('diag_info');
@@ -10997,6 +11001,8 @@ function incDecLF(dsize)
     global_large_font  = fs;
     storage.setItem('user_fs',global_large_font);
     document.getElementById('lf_val').innerHTML = '' + global_large_font;
+    // KR: 가이드 버튼이 하단 방향 문구 위에 오도록 글자 크기만큼 위치 조정
+    document.documentElement.style.setProperty('--kr-lf', global_large_font + 'mm');
 }
 
 function getShowOnStartup(show)
