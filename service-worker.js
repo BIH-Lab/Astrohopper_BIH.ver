@@ -13,7 +13,7 @@
  * JS/HTML 수정 후 배포 시 CACHE_NAME 버전을 올리면 이전 캐시가 정리된다.
  */
 
-const CACHE_NAME = 'astrohopper-kr-v23';
+const CACHE_NAME = 'astrohopper-kr-v24';
 const NETWORK_TIMEOUT_MS = 3000;
 
 // 배포 경로(/Astrohopper_BIH.ver/)와 로컬 테스트 경로 모두에서 동작하도록 scope 기준으로 계산
