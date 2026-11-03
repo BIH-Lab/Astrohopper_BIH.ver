@@ -8132,6 +8132,7 @@ var i18n_dicts = {
         "Gyro": "자이로",
         "Manual": "수동",
         "Explore": "탐색",
+        "New version available - tap to update": "새 버전이 있습니다 — 탭하여 업데이트",
         "[hide]": "[숨기기]",
         "[edit]": "[편집]",
         "None": "없음",
@@ -8950,6 +8951,7 @@ var gdata = {
 	"compass_alpha" : 0,
 	"alpha" : 0,
 	"alpha_user_offset" : 0,
+	"alt_user_offset" : 0,
 	"alpha_gyro" : 0,
 	"alpha_diff" : 0,
 	"beta" : 0,
@@ -9235,6 +9237,7 @@ function setUseGyro(val,message=null,message_tiny=null)
 
 function resetAll()
 {
+	gdata.alt_user_offset = 0;
 	global_expecting_select = selectTarget;
 	findTargetByName();
 	global_target_index = -1;
@@ -9250,6 +9253,8 @@ function align()
 		return;
 	// KR: 정렬은 망원경(센서) 모드에서만 의미가 있으므로 탐색 모드 해제
 	exitExploreMode();
+	// KR: 정렬은 실제 센서 기울기 기준으로 해야 하므로 위아래 드래그 보정값 초기화
+	gdata.alt_user_offset = 0;
 	/// realign in manual mode
 	if(global_use_gyro && !global_use_compass) {
 		// keep bearing
@@ -9535,6 +9540,18 @@ function exploreClickGuard(e)
 	}
 }
 
+// KR: 손바닥 모드 위아래 드래그 - 시선의 방위는 유지하고 고도만 offset만큼 올리고 내림
+function applyAltOffset(fwd,off)
+{
+	var hl = Math.sqrt(fwd[0]*fwd[0] + fwd[1]*fwd[1]);
+	if(hl < 1e-6)
+		return fwd;
+	var alt = Math.atan2(fwd[2],hl) * 180 / Math.PI;
+	var nalt = Math.max(-89.5,Math.min(89.5,alt + off)) * Math.PI / 180;
+	var c = Math.cos(nalt);
+	return [fwd[0]/hl*c, fwd[1]/hl*c, Math.sin(nalt)];
+}
+
 function getCameraRays()
 {
 	if(global_explore_mode)
@@ -9550,6 +9567,8 @@ function getCameraRays()
 	
 
 	var fwd = smoothForward(mvec(M,[0,1,0]));
+	if(!global_use_gyro && gdata.alt_user_offset)
+		fwd = applyAltOffset(fwd,gdata.alt_user_offset);
 
 	// make sure left  is horizontal
 
@@ -10391,6 +10410,7 @@ function compassMode()
 	global_user_manual = false;
 	global_compass_auto_off = false;
 	gdata.alpha_user_offset = 0;
+	gdata.alt_user_offset = 0; // 나침반 모드 = 실제 방향 그대로
 	gdata.alpha = gdata.compass_alpha;
 	document.getElementById("nocompass_button").style.display="none";
 	document.getElementById("compass_button").style.display="none";
@@ -10468,6 +10488,12 @@ function moveSky(prev,cur)
 	var fov =  getFOV().lr;
 	var da = (cur.x - prev.x) / canvas.width * fov;;
 	gdata.alpha_user_offset += da;
+	// KR: 손바닥(수동) 모드 위아래 드래그 - 정렬 전에만 고도 보정값으로 적용
+	// (정렬 후에는 정렬 행렬이 고도까지 보정하므로 사용하지 않음)
+	if(!global_use_gyro) {
+		var dalt = (cur.y - prev.y) / canvas.height * getFOV().td;
+		gdata.alt_user_offset = Math.max(-90,Math.min(90,gdata.alt_user_offset + dalt));
+	}
 }
 
 function dontPropMouseDown(lst,events_list)
@@ -10582,12 +10608,13 @@ function getBrowserName()
 	return 'Other';
 }
 
+var KR_BUILD = 'v23'; // KR: service-worker.js CACHE_NAME 버전과 맞출 것
 function updateDiagInfo()
 {
 	var el = document.getElementById('diag_info');
 	if(el) {
 		var mode = getDisplayMode();
-		el.innerHTML = getBrowserName() + ' · ' + (mode == 'browser' ? 'Web' : 'App(' + mode + ')') +
+		el.innerHTML = 'KR ' + KR_BUILD + ' · ' + getBrowserName() + ' · ' + (mode == 'browser' ? 'Web' : 'App(' + mode + ')') +
 			' · ' + _tr('Sensor') + ' ' + global_sensor_count + 'Hz' +
 			' · ' + global_fps_count + 'fps' +
 			' · ' + global_last_draw_ms + 'ms' +
@@ -11291,9 +11318,37 @@ setInterval(updateDiagInfo, 1000);
 // KR: 서비스워커는 고정 URL로 등록한다.
 // (기존: "?"+Date.now()로 매 실행마다 새 워커가 설치되며 전체 파일을 재다운로드)
 // updateViaCache:'none' → 워커 스크립트 갱신 확인 시 HTTP 캐시를 거치지 않음
+// KR: 설치형 앱은 최근 앱 목록에서 다시 열면 페이지를 새로 불러오지 않아 구버전이 계속 실행된다.
+// 앱으로 돌아올 때마다 업데이트를 확인하고, 새 버전이 활성화되면 상단에 '탭하여 업데이트' 안내를 띄운다.
+function showUpdateBanner()
+{
+	if(document.getElementById('kr_update_banner'))
+		return;
+	var d = document.createElement('div');
+	d.id = 'kr_update_banner';
+	d.textContent = _tr('New version available - tap to update');
+	d.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);top:calc(14mm + env(safe-area-inset-top, 0px));' +
+		'z-index:200;background:black;color:red;border:2px solid red;border-radius:2mm;padding:2mm 4mm;font-size:4mm;white-space:nowrap';
+	['click','touchstart','touchmove','touchend','touchcancel'].forEach(function(ev) {
+		d.addEventListener(ev,function(e) { e.stopPropagation(); });
+	});
+	d.addEventListener('click',function() { location.reload(); });
+	document.body.appendChild(d);
+}
+
 window.addEventListener("load", () => {
         if ("serviceWorker" in navigator) {
+            var hadController = !!navigator.serviceWorker.controller;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (hadController) showUpdateBanner();
+                hadController = true;
+            });
             navigator.serviceWorker.register("service-worker.js", { updateViaCache: 'none' })
+                .then(reg => {
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.visibilityState === 'visible') reg.update().catch(() => {});
+                    });
+                })
                 .catch(e => console.warn('SW register failed:', e));
         }
 });
