@@ -170,7 +170,7 @@ const AHGuide = (() => {
     // 2순위: NASA SkyView DSS2 Red(JPEG) — CDS 접속이 안 되는 망 대비
     const FOV_OPTIONS = [0.5, 1, 2];               // 도(°)
     let previewFov = 1;
-    try { const v = parseFloat(localStorage.getItem('kr_dss_fov')); if (FOV_OPTIONS.includes(v)) previewFov = v; } catch (e) {}
+    try { localStorage.removeItem('kr_dss_fov'); } catch (e) {}   // 매 실행 1°로 시작 (이전 버전 저장값 정리)
 
     const PREVIEW_PX = 300;
     const DSS_SOURCES = [
@@ -249,12 +249,11 @@ const AHGuide = (() => {
         img.src = src.url(ra, dec, previewFov);
     }
 
-    // 시야 변경: 저장 후 열려 있는 미리보기를 다시 불러온다
+    // 시야 변경(이번 실행 동안만 유지): 열려 있는 미리보기를 다시 불러온다
     function setPreviewFov(fov, event) {
         if (event) event.stopPropagation();
         if (!FOV_OPTIONS.includes(fov)) return;
         previewFov = fov;
-        try { localStorage.setItem('kr_dss_fov', String(fov)); } catch (e) {}
         document.querySelectorAll('.gi_fov_btn').forEach(b =>
             b.classList.toggle('on', parseFloat(b.dataset.fov) === fov));
         if (activePreviewIdx !== null) {
